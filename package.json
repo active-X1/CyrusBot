@@ -1,0 +1,32 @@
+{
+  "name": "cyrusbot",
+  "version": "1.0.0",
+  "description": "Personal WhatsApp bot by Cyrus",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "cyrusbot"
+  ],
+  "author": "Cyrus",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "axios": "^1.7.7",
+    "ffmpeg-static": "^4.4.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "moment-timezone": "^0.5.45",
+    "node-cron": "^3.0.3",
+    "pino": "^8.15.0",
+    "qrcode-terminal": "^0.12.0",
+    "sharp": "^0.33.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

@@ -1,0 +1,10 @@
+node_modules/
+auth_info/
+downloads/
+logs/
+config.json
+scheduled.json
+.env
+*.log
+.DS_Store
+*.tmp
