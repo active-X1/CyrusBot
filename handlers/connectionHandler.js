@@ -1,37 +1,44 @@
 const { DisconnectReason } = require("@whiskeysockets/baileys");
-const { logInfo, logError } = require("../utils/logger");
+const { logInfo } = require("../utils/logger");
 
-function setupConnectionHandlers(sock, { onReady, onClose, onReconnect }) {
+function setupConnectionHandlers(sock, { onReady, onClose }) {
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
 
     if (qr) {
-      console.log("\n📱 QR code ready. Please scan it from the linked device.\n");
+      console.log("\n📱 QR code ready. Scan it from WhatsApp.\n");
     }
 
     if (connection === "open") {
       logInfo("WhatsApp connection opened.");
-      if (typeof onReady === "function") await onReady();
+
+      if (typeof onReady === "function") {
+        await onReady();
+      }
+
       return;
     }
 
     if (connection === "close") {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
-      logInfo(`Connection closed with reason: ${statusCode ?? "unknown"}`);
+      const statusCode =
+        lastDisconnect?.error?.output?.statusCode;
 
-      if (statusCode === DisconnectReason.loggedOut) {
-        logInfo("Session logged out. Remove auth and pair again.");
-      }
+      logInfo(
+        `Connection closed: ${statusCode ?? "unknown"}`
+      );
 
       if (typeof onClose === "function") {
-        await onClose({ statusCode, lastDisconnect });
-      }
-
-      if (typeof onReconnect === "function") {
-        onReconnect(statusCode);
+        await onClose({
+          statusCode,
+          lastDisconnect,
+          shouldReconnect:
+            statusCode !== DisconnectReason.loggedOut,
+        });
       }
     }
   });
 }
 
-module.exports = { setupConnectionHandlers };
+module.exports = {
+  setupConnectionHandlers,
+};
