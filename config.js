@@ -1,0 +1,112 @@
+const fs = require("fs");
+const path = require("path");
+
+const ROOT_DIR = __dirname;
+const AUTH_DIR = path.join(ROOT_DIR, "auth");
+const SESSIONS_DIR = path.join(ROOT_DIR, "sessions");
+const DOWNLOAD_DIR = path.join(ROOT_DIR, "downloads");
+const TEMP_DIR = path.join(ROOT_DIR, "temp");
+const LOG_DIR = path.join(ROOT_DIR, "logs");
+const DATABASE_DIR = path.join(ROOT_DIR, "database");
+const MEDIA_DIR = path.join(ROOT_DIR, "media");
+const CONFIG_FILE = path.join(ROOT_DIR, "config.json");
+const SCHEDULE_FILE = path.join(ROOT_DIR, "scheduled.json");
+
+const DEFAULT_CONFIG = {
+  botName: "CyrusBot",
+  version: "1.0.0",
+  ownerJid: "2348066761823@s.whatsapp.net",
+  timezone: "Africa/Lagos",
+  autoReplyEnabled: true,
+  autoReply: "Cyrus is a bit busy now but will soon respond.",
+  groupMode: true,
+};
+
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+function ensureStructure() {
+  const dirs = [
+    AUTH_DIR,
+    SESSIONS_DIR,
+    DOWNLOAD_DIR,
+    TEMP_DIR,
+    LOG_DIR,
+    DATABASE_DIR,
+    MEDIA_DIR,
+  ];
+
+  for (const dir of dirs) {
+    ensureDir(dir);
+  }
+}
+
+function readJSON(filePath, fallback = {}) {
+  try {
+    if (!fs.existsSync(filePath)) {
+      writeJSON(filePath, fallback);
+      return fallback;
+    }
+
+    const data = fs.readFileSync(filePath, "utf8").trim();
+    if (!data) {
+      return fallback;
+    }
+
+    return JSON.parse(data);
+  } catch (error) {
+    console.error(`Failed to read ${filePath}:`, error.message);
+    return fallback;
+  }
+}
+
+function writeJSON(filePath, data) {
+  try {
+    const tempFile = `${filePath}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+    fs.renameSync(tempFile, filePath);
+    return true;
+  } catch (error) {
+    console.error(`Failed to write ${filePath}:`, error.message);
+    return false;
+  }
+}
+
+ensureStructure();
+
+const config = {
+  ...DEFAULT_CONFIG,
+  ...readJSON(CONFIG_FILE, DEFAULT_CONFIG),
+};
+
+const schedules = readJSON(SCHEDULE_FILE, []);
+
+if (!Array.isArray(schedules)) {
+  throw new Error("scheduled.json must contain an array.");
+}
+
+writeJSON(CONFIG_FILE, config);
+writeJSON(SCHEDULE_FILE, schedules);
+
+module.exports = {
+  ROOT_DIR,
+  AUTH_DIR,
+  SESSIONS_DIR,
+  DOWNLOAD_DIR,
+  TEMP_DIR,
+  LOG_DIR,
+  DATABASE_DIR,
+  MEDIA_DIR,
+  CONFIG_FILE,
+  SCHEDULE_FILE,
+  DEFAULT_CONFIG,
+  config,
+  schedules,
+  ensureDir,
+  ensureStructure,
+  readJSON,
+  writeJSON,
+};

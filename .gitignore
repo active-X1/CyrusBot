@@ -1,9 +1,14 @@
 node_modules/
-auth_info/
+auth/
+sessions/
 downloads/
+temp/
 logs/
+media/
+database/*.json
 config.json
 scheduled.json
+auth_info/
 .env
 *.log
 .DS_Store
