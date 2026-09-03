@@ -2,6 +2,7 @@ const { config } = require("../config");
 const {
   executeCommand,
 } = require("./commandHandler");
+const { handleGroupMessage } = require("./groupHandler");
 const { logInfo } = require("../utils/logger");
 
 function parseCommand(text) {
@@ -76,6 +77,12 @@ async function handleIncomingMessage(sock, msg) {
 
   const sender = msg.key?.participant || jid;
   const text = getTextFromMessage(msg);
+
+  const groupBlocked = await handleGroupMessage(sock, msg);
+
+  if (groupBlocked) {
+    return;
+  }
 
   if (!text) {
     return;

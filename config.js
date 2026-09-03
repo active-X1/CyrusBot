@@ -17,13 +17,36 @@ const SCHEDULE_FILE = path.join(ROOT_DIR, "scheduled.json");
 const DEFAULT_CONFIG = {
   botName: "CyrusBot",
   version: "1.0.0",
-  ownerJid: "2348066761823@s.whatsapp.net",
+  ownerNumber: "08068363588",
+  ownerJid: "2348068363588@s.whatsapp.net",
   timezone: "Africa/Lagos",
   prefix: ".",
   autoReplyEnabled: true,
   autoReply: "Cyrus is a bit busy now but will soon respond.",
   groupMode: true,
 };
+
+function normalizePhoneNumber(value) {
+  if (!value || typeof value !== "string") {
+    return "";
+  }
+
+  const digits = value.replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  if (digits.length === 11 && digits.startsWith("0")) {
+    return `234${digits.slice(1)}`;
+  }
+
+  if (digits.length === 13 && digits.startsWith("234")) {
+    return digits;
+  }
+
+  return digits;
+}
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -115,6 +138,7 @@ module.exports = {
   DEFAULT_CONFIG,
   config,
   schedules,
+  normalizePhoneNumber,
   ensureDir,
   ensureStructure,
   readJSON,

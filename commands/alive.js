@@ -1,3 +1,5 @@
+const { config } = require("../config");
+
 module.exports = {
   name: "alive",
   description: "Check whether the bot is running.",
@@ -8,9 +10,10 @@ module.exports = {
 
     await sock.sendMessage(jid, {
       text:
-        "✅ *CyrusBot is alive!*\n\n" +
-        "🤖 Status: Online\n" +
-        "⚡ Ready: Yes",
+        `✅ *${config.botName} is alive!*\n\n` +
+        `🤖 Status: Online\n` +
+        `⚡ Version: ${config.version}\n` +
+        `📌 Type ${config.prefix}menu for the command list`,
     });
   },
 };

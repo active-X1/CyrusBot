@@ -1,4 +1,5 @@
 const { DisconnectReason } = require("@whiskeysockets/baileys");
+const qrcode = require("qrcode-terminal");
 const { logInfo } = require("../utils/logger");
 
 function setupConnectionHandlers(sock, { onReady, onClose }) {
@@ -7,6 +8,7 @@ function setupConnectionHandlers(sock, { onReady, onClose }) {
 
     if (qr) {
       console.log("\n📱 QR code ready. Scan it from WhatsApp.\n");
+      qrcode.generate(qr, { small: true });
     }
 
     if (connection === "open") {

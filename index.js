@@ -4,6 +4,7 @@
   Browsers,
   DisconnectReason,
 } = require("@whiskeysockets/baileys");
+const qrcode = require("qrcode-terminal");
 
 const {
   AUTH_DIR,
@@ -18,6 +19,11 @@ const {
 const {
   handleIncomingMessage,
 } = require("./handlers/messageHandler");
+
+const {
+  handleGroupJoinEvent,
+  handleGroupLeaveEvent,
+} = require("./handlers/groupHandler");
 
 const {
   loadCommands,
@@ -45,10 +51,12 @@ async function startBot() {
       saveCreds,
     } = await useMultiFileAuthState(AUTH_DIR);
 
+    console.log(
+      "📱 Waiting for WhatsApp pairing. A QR code will appear in the terminal."
+    );
+
     const sock = makeWASocket({
       auth: state,
-
-      printQRInTerminal: false,
 
       browser: Browsers.ubuntu(
         config.botName || "CyrusBot"
@@ -56,7 +64,10 @@ async function startBot() {
 
       syncFullHistory: false,
 
-      markOnlineOnConnect: false,
+      markOnlineOnConnect: true,
+
+      connectTimeoutMs: 60000,
+      keepAliveIntervalMs: 10000,
 
       shouldIgnoreJid: (jid) =>
         jid === "status@broadcast",
@@ -156,6 +167,27 @@ async function startBot() {
               "messages.upsert"
             );
           }
+        }
+      }
+    );
+
+    sock.ev.on(
+      "group-participants.update",
+      async ({ id, participants, action }) => {
+        if (!id || !Array.isArray(participants)) {
+          return;
+        }
+
+        try {
+          if (action === "add") {
+            await handleGroupJoinEvent(sock, id, participants);
+          }
+
+          if (action === "remove") {
+            await handleGroupLeaveEvent(sock, id, participants);
+          }
+        } catch (error) {
+          logError(error, "group-participants.update");
         }
       }
     );
