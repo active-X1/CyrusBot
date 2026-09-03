@@ -17,8 +17,8 @@ const SCHEDULE_FILE = path.join(ROOT_DIR, "scheduled.json");
 const DEFAULT_CONFIG = {
   botName: "CyrusBot",
   version: "1.0.0",
-  ownerNumber: "08068363588",
-  ownerJid: "2348068363588@s.whatsapp.net",
+  ownerNumber: "08066761823",
+  ownerJid: "2348066761823@s.whatsapp.net",
   timezone: "Africa/Lagos",
   prefix: ".",
   autoReplyEnabled: true,

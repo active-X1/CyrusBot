@@ -4,7 +4,7 @@
   "description": "Personal WhatsApp bot by Cyrus",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node start.js",
     "pair": "node pair.js",
     "dev": "nodemon index.js"
   },
