@@ -23,7 +23,7 @@ module.exports = {
       `┃ 🟢 Status   : Online`,
       `┃ 🤖 Bot      : ${config.botName}`,
       `┃`,
-      `╰━━━━━━━━━━━━━━━━━━━╯`,
+      `╰━━━━━━━━━━━━━━━━━╯`,
     ].join('\n');
 
     await ctx.safeSend(sock, ctx.chatId, { text }, { quoted: msg });
