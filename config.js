@@ -18,6 +18,18 @@ function digitsOnly(value) {
   return (value || '').replace(/[^0-9]/g, '');
 }
 
+// Accepts a few human-friendly spellings for the same two methods so
+// ".env" examples like "AUTH_METHOD=pairing" and "AUTH_METHOD=pairing-code"
+// both work, without introducing a new environment variable name.
+function normalizeAuthMethod(raw) {
+  const v = (raw || '').trim().toLowerCase();
+  if (['pairing', 'pairing-code', 'phone', 'phone-number'].includes(v)) return 'pairing-code';
+  if (['qr', 'qr-code'].includes(v)) return 'qr';
+  return null; // not set, or not recognized -> caller decides the default
+}
+
+const resolvedAuthMethod = normalizeAuthMethod(process.env.AUTH_METHOD);
+
 const config = {
   botName: process.env.BOT_NAME || 'CyrusBot',
   botAuthor: process.env.BOT_AUTHOR || 'Active X',
@@ -28,7 +40,12 @@ const config = {
   ownerNumber: digitsOnly(process.env.OWNER_NUMBER),
   sudoNumbers: parseNumberList(process.env.SUDO_NUMBERS),
 
-  authMethod: (process.env.AUTH_METHOD || 'qr').toLowerCase(), // 'qr' | 'pairing-code'
+  // 'qr' | 'pairing-code'. If AUTH_METHOD wasn't set (or wasn't
+  // recognized) in .env, this defaults to 'qr' but authMethodExplicit
+  // below is false, which lets lib/authSetup.js know it's free to show
+  // the interactive setup menu instead of silently assuming QR.
+  authMethod: resolvedAuthMethod || 'qr',
+  authMethodExplicit: resolvedAuthMethod !== null,
   pairingNumber: digitsOnly(process.env.PAIRING_NUMBER || process.env.OWNER_NUMBER),
 
   groqApiKey: process.env.GROQ_API_KEY || '',

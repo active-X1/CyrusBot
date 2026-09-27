@@ -1,9 +1,12 @@
 // commands/help.js
+// Note: this used to have aliases: ['menu'], but commands/menu.js is
+// now its own dedicated command with that exact name - keeping the
+// alias here would collide with it in lib/commandLoader.js's registry.
 const config = require('../config');
 
 module.exports = {
   name: 'help',
-  aliases: ['menu'],
+  aliases: [],
   description: 'List available commands.',
   category: 'general',
   ownerOnly: false,

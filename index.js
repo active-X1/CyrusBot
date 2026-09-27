@@ -33,6 +33,7 @@ const {
 } = require('./lib/helpers');
 const rateLimiter = require('./lib/rateLimiter');
 const { askAI, AIProviderError } = require('./lib/aiProvider');
+const { resolveAuthMethod } = require('./lib/authSetup');
 
 const SESSIONS_PATH = path.resolve(config.paths.sessions);
 
@@ -160,7 +161,7 @@ async function handleIncomingMessage(sock, msg) {
  * Returns { sock, shouldReconnect } so the caller can decide whether to
  * loop again.
  */
-async function connectOnce() {
+async function connectOnce(authChoice) {
   const { state, saveCreds } = await useMultiFileAuthState(SESSIONS_PATH);
   const { version } = await fetchLatestBaileysVersion();
 
@@ -191,13 +192,13 @@ async function connectOnce() {
     await handleIncomingMessage(sock, msg);
   });
 
-  if (config.authMethod === 'pairing-code' && !sock.authState.creds.registered) {
-    if (!config.pairingNumber) {
-      logger.error('AUTH_METHOD=pairing-code requires PAIRING_NUMBER (or OWNER_NUMBER) to be set in .env');
+  if (authChoice.method === 'pairing-code' && !sock.authState.creds.registered) {
+    if (!authChoice.pairingNumber) {
+      logger.error('Phone-number pairing was selected but no phone number is available (set PAIRING_NUMBER, OWNER_NUMBER, or answer the interactive prompt).');
     } else {
       setTimeout(async () => {
         try {
-          const code = await sock.requestPairingCode(config.pairingNumber);
+          const code = await sock.requestPairingCode(authChoice.pairingNumber);
           const formatted = code?.match(/.{1,4}/g)?.join('-') || code;
           logger.info(`Pairing code: ${formatted}`);
           console.log(`\n📟 Pairing code: ${formatted}\nOpen WhatsApp > Linked Devices > Link a Device > enter this code.\n`);
@@ -212,7 +213,7 @@ async function connectOnce() {
     sock.ev.on('connection.update', (update) => {
       const { connection, lastDisconnect, qr } = update;
 
-      if (qr && config.authMethod !== 'pairing-code') {
+      if (qr && authChoice.method !== 'pairing-code') {
         console.log('\n📱 Scan this QR code with WhatsApp (Linked Devices > Link a Device):\n');
         qrcodeTerminal.generate(qr, { small: true });
       }
@@ -244,13 +245,18 @@ let shuttingDown = false;
 async function main() {
   refreshCommands();
 
+  // Resolved ONCE, before the reconnect loop, so the QR-vs-pairing-code
+  // choice (and any interactive prompt) never happens more than once
+  // per process, and every reconnect reuses the same decision.
+  const authChoice = await resolveAuthMethod();
+
   let backoffMs = 2000;
   const MAX_BACKOFF_MS = 30_000;
 
   // Iterative reconnect loop (not recursive) so the call stack never
   // grows and old listeners are dropped each cycle instead of piling up.
   while (!shuttingDown) {
-    const { sock, shouldReconnect } = await connectOnce();
+    const { sock, shouldReconnect } = await connectOnce(authChoice);
     currentSock = sock;
 
     if (!shouldReconnect || shuttingDown) break;
