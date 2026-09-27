@@ -1,60 +1,48 @@
-const { loadCommands } = require("../handlers/commandHandler");
-const { config } = require("../config");
+// commands/help.js
+const config = require('../config');
 
 module.exports = {
-  name: "help",
-  description: "Show available commands.",
-  category: "General",
+  name: 'help',
+  aliases: ['menu'],
+  description: 'List available commands.',
+  category: 'general',
+  ownerOnly: false,
+  async execute(sock, msg, args, ctx) {
+    const { commands } = ctx;
+    const prefix = config.prefix;
 
-  async execute(sock, msg, context) {
-    const { jid } = context;
-    const commands = Object.values(loadCommands())
-      .filter((command) => command?.name)
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    const grouped = {
-      General: [],
-      Fun: [],
-      Utility: [],
-    };
-
-    for (const command of commands) {
-      const category = command.category || "General";
-
-      if (!grouped[category]) {
-        grouped[category] = [];
+    if (args[0]) {
+      const target = args[0].toLowerCase().replace(prefix, '');
+      const cmd = commands.find((c) => c.name === target || (c.aliases || []).includes(target));
+      if (!cmd) {
+        return ctx.safeSend(sock, ctx.chatId, { text: `No command named "${target}" found.` }, { quoted: msg });
       }
-
-      grouped[category].push(command);
+      const aliasLine = cmd.aliases?.length ? `\nAliases: ${cmd.aliases.map((a) => prefix + a).join(', ')}` : '';
+      const ownerLine = cmd.ownerOnly ? '\nOwner only: yes' : '';
+      return ctx.safeSend(
+        sock,
+        ctx.chatId,
+        { text: `*${prefix}${cmd.name}*\n${cmd.description || 'No description.'}${aliasLine}${ownerLine}` },
+        { quoted: msg }
+      );
     }
 
-    let text = "╔═══════════════════╗\n";
-    text += `║ *${config.botName} Help* ║\n`;
-    text += "╚═══════════════════╝\n\n";
-
-    text += "*Core group controls*\n";
-    text += `• ${config.prefix}antilink — toggle link protection\n`;
-    text += `• ${config.prefix}antibadword — toggle bad-word protection\n`;
-    text += `• ${config.prefix}warn — warn a user\n`;
-    text += `• ${config.prefix}warnings — show a user's warning count\n\n`;
-
-    for (const [category, categoryCommands] of Object.entries(grouped)) {
-      if (!categoryCommands.length) {
-        continue;
-      }
-
-      text += `*${category} Commands*\n`;
-
-      for (const command of categoryCommands) {
-        text +=
-          `• ${config.prefix}${command.name} — ${command.description || "No description"}\n`;
-      }
-
-      text += "\n";
+    const byCategory = {};
+    for (const cmd of commands) {
+      const cat = cmd.category || 'general';
+      byCategory[cat] = byCategory[cat] || [];
+      byCategory[cat].push(cmd);
     }
 
-    await sock.sendMessage(jid, {
-      text: text.trim(),
-    });
+    let text = `🤖 *${config.botName}* — by ${config.botAuthor}\nPrefix: "${prefix}"\n`;
+    for (const [category, cmds] of Object.entries(byCategory)) {
+      text += `\n*${category.toUpperCase()}*\n`;
+      for (const cmd of cmds) {
+        text += `• ${prefix}${cmd.name} — ${cmd.description || ''}\n`;
+      }
+    }
+    text += `\nTip: send "${prefix}help <command>" for details on one command.`;
+
+    await ctx.safeSend(sock, ctx.chatId, { text }, { quoted: msg });
   },
 };

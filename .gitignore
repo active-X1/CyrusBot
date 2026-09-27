@@ -1,15 +1,35 @@
-node_modules/
-auth/
-sessions/
-downloads/
-temp/
-logs/
-media/
-database/*.json
-config.json
-scheduled.json
-auth_info/
+# Secrets / environment
 .env
+.env.*
+!.env.example
+
+# WhatsApp authentication / session data (NEVER commit these)
+sessions/
+!sessions/.gitkeep
+
+# Runtime data & local "database"
+database/*.json
+!database/.gitkeep
+
+# Logs (may contain message content / sensitive info)
+logs/
+!logs/.gitkeep
 *.log
+
+# Temp / downloaded / generated media
+temp/*
+!temp/.gitkeep
+downloads/*
+!downloads/.gitkeep
+media/*
+!media/.gitkeep
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS / editor cruft
 .DS_Store
-*.tmp
+Thumbs.db
+.vscode/
+.idea/

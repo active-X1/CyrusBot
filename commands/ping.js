@@ -1,21 +1,19 @@
+// commands/ping.js
 module.exports = {
-  name: "ping",
-  description: "Check bot latency and online status.",
-  category: "General",
-
-  async execute(sock, msg, context) {
-    const { jid } = context;
-
+  name: 'ping',
+  aliases: [],
+  description: 'Check whether the bot is online and measure response latency.',
+  category: 'general',
+  ownerOnly: false,
+  async execute(sock, msg, args, ctx) {
     const start = Date.now();
-
-    await sock.sendMessage(jid, {
-      text: "🏓 Measuring latency...",
-    });
-
-    const elapsed = Date.now() - start;
-
-    await sock.sendMessage(jid, {
-      text: `🏓 Pong!\nLatency: ${elapsed}ms`,
-    });
+    const sent = await ctx.safeSend(sock, ctx.chatId, { text: '🏓 Pinging...' }, { quoted: msg });
+    const latency = Date.now() - start;
+    await ctx.safeSend(
+      sock,
+      ctx.chatId,
+      { text: `🏓 Pong! ${latency}ms` },
+      { quoted: msg }
+    );
   },
 };

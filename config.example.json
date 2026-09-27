@@ -1,9 +1,0 @@
-{
-  "botName": "CyrusBot",
-  "version": "1.0.0",
-  "ownerName": "Cyrus",
-  "timezone": "Africa/Lagos",
-  "autoReply": "Cyrus is a bit busy now but will soon respond",
-  "autoReplyEnabled": true,
-  "groupMode": true
-}

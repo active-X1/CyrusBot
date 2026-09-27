@@ -1,146 +1,52 @@
-const fs = require("fs");
-const path = require("path");
+// config.js
+// Single place where every piece of runtime configuration is read from
+// environment variables (via .env) and exposed to the rest of the bot.
+// No secrets ever live in this file itself - only fallback defaults that
+// are safe to be public (e.g. the default command prefix).
 
-const ROOT_DIR = __dirname;
+require('dotenv').config();
 
-const AUTH_DIR = path.join(ROOT_DIR, "auth");
-const SESSIONS_DIR = path.join(ROOT_DIR, "sessions");
-const DOWNLOAD_DIR = path.join(ROOT_DIR, "downloads");
-const TEMP_DIR = path.join(ROOT_DIR, "temp");
-const LOG_DIR = path.join(ROOT_DIR, "logs");
-const DATABASE_DIR = path.join(ROOT_DIR, "database");
-const MEDIA_DIR = path.join(ROOT_DIR, "media");
-
-const CONFIG_FILE = path.join(ROOT_DIR, "config.json");
-const SCHEDULE_FILE = path.join(ROOT_DIR, "scheduled.json");
-
-const DEFAULT_CONFIG = {
-  botName: "CyrusBot",
-  version: "1.0.0",
-  ownerNumber: "08066761823",
-  ownerJid: "2348066761823@s.whatsapp.net",
-  timezone: "Africa/Lagos",
-  prefix: ".",
-  autoReplyEnabled: true,
-  autoReply: "Cyrus is a bit busy now but will soon respond.",
-  groupMode: true,
-};
-
-function normalizePhoneNumber(value) {
-  if (!value || typeof value !== "string") {
-    return "";
-  }
-
-  const digits = value.replace(/\D/g, "");
-
-  if (!digits) {
-    return "";
-  }
-
-  if (digits.length === 11 && digits.startsWith("0")) {
-    return `234${digits.slice(1)}`;
-  }
-
-  if (digits.length === 13 && digits.startsWith("234")) {
-    return digits;
-  }
-
-  return digits;
+function parseNumberList(value) {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((n) => n.trim().replace(/[^0-9]/g, ''))
+    .filter(Boolean);
 }
 
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
+function digitsOnly(value) {
+  return (value || '').replace(/[^0-9]/g, '');
 }
 
-function ensureStructure() {
-  const dirs = [
-    AUTH_DIR,
-    SESSIONS_DIR,
-    DOWNLOAD_DIR,
-    TEMP_DIR,
-    LOG_DIR,
-    DATABASE_DIR,
-    MEDIA_DIR,
-  ];
-
-  dirs.forEach(ensureDir);
-}
-
-function writeJSON(filePath, data) {
-  try {
-    const tempFile = `${filePath}.tmp`;
-
-    fs.writeFileSync(
-      tempFile,
-      JSON.stringify(data, null, 2),
-      "utf8"
-    );
-
-    fs.renameSync(tempFile, filePath);
-    return true;
-  } catch (error) {
-    console.error(`Failed to write ${filePath}:`, error.message);
-    return false;
-  }
-}
-
-function readJSON(filePath, fallback = {}) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      writeJSON(filePath, fallback);
-      return fallback;
-    }
-
-    const data = fs.readFileSync(filePath, "utf8").trim();
-
-    if (!data) {
-      writeJSON(filePath, fallback);
-      return fallback;
-    }
-
-    return JSON.parse(data);
-  } catch (error) {
-    console.error(`Failed to read ${filePath}:`, error.message);
-    return fallback;
-  }
-}
-
-ensureStructure();
-
-const storedConfig = readJSON(CONFIG_FILE, {});
 const config = {
-  ...DEFAULT_CONFIG,
-  ...storedConfig,
+  botName: process.env.BOT_NAME || 'CyrusBot',
+  botAuthor: process.env.BOT_AUTHOR || 'Active X',
+  githubUsername: process.env.GITHUB_USERNAME || 'active-X1',
+
+  prefix: process.env.PREFIX || '.',
+
+  ownerNumber: digitsOnly(process.env.OWNER_NUMBER),
+  sudoNumbers: parseNumberList(process.env.SUDO_NUMBERS),
+
+  authMethod: (process.env.AUTH_METHOD || 'qr').toLowerCase(), // 'qr' | 'pairing-code'
+  pairingNumber: digitsOnly(process.env.PAIRING_NUMBER || process.env.OWNER_NUMBER),
+
+  groqApiKey: process.env.GROQ_API_KEY || '',
+  groqModel: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+  aiDailyLimit: Number.parseInt(process.env.AI_DAILY_LIMIT, 10) || 10,
+
+  defaultCipherPassphrase: process.env.DEFAULT_CIPHER_PASSPHRASE || '',
+
+  logLevel: process.env.LOG_LEVEL || 'info',
+
+  paths: {
+    sessions: './sessions',
+    database: './database',
+    logs: './logs',
+    downloads: './downloads',
+    temp: './temp',
+    media: './media',
+  },
 };
 
-const schedules = readJSON(SCHEDULE_FILE, []);
-
-if (!Array.isArray(schedules)) {
-  throw new Error("scheduled.json must contain an array.");
-}
-
-writeJSON(CONFIG_FILE, config);
-writeJSON(SCHEDULE_FILE, schedules);
-
-module.exports = {
-  ROOT_DIR,
-  AUTH_DIR,
-  SESSIONS_DIR,
-  DOWNLOAD_DIR,
-  TEMP_DIR,
-  LOG_DIR,
-  DATABASE_DIR,
-  MEDIA_DIR,
-  CONFIG_FILE,
-  SCHEDULE_FILE,
-  DEFAULT_CONFIG,
-  config,
-  schedules,
-  normalizePhoneNumber,
-  ensureDir,
-  ensureStructure,
-  readJSON,
-  writeJSON,
-};
+module.exports = config;
