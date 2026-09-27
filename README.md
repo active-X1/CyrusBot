@@ -1,39 +1,68 @@
 🤖 CyrusBot
 
-«A modular, powerful, and developer-friendly WhatsApp bot built with Node.js and Baileys.»
+A Modular WhatsApp Bot Built with Node.js & Baileys
 
-CyrusBot is a modular WhatsApp automation bot created by Active X. It is designed with a clean architecture that makes commands easy to add, modify, maintain, and understand.
-
-The project focuses on simplicity, security, extensibility, and keeping each feature separated into its own module.
-
----
+<p align="center">
+  <img src="https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=node.js&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/Baileys-WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white" alt="Baileys">
+  <img src="https://img.shields.io/badge/JavaScript-ES2022-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black" alt="JavaScript">
+  <img src="https://img.shields.io/github/license/active-X1/CyrusBot?style=for-the-badge" alt="License">
+</p><p align="center">
+  <b>CyrusBot</b> is a modular WhatsApp bot designed with a clean, extensible architecture that makes it easy to build, manage, and add new features.
+</p><p align="center">
+  Built with ❤️ by <a href="https://github.com/active-X1">Active X</a>
+</p>---
 
 ✨ Features
 
-- 📱 WhatsApp QR-code authentication
-- 🔢 WhatsApp pairing-code authentication
-- 🧩 Modular command system
-- ⚡ Dynamic command loading
-- 🏓 Ping command
-- 🤖 AI-powered chat
-- 🧠 Automatic AI mode
-- 🔐 AES-256-GCM encryption/decryption
-- 📨 Custom auto-reply message
-- 👑 Owner permissions
-- 🛡️ Group-admin permissions
-- 🚦 AI usage rate limiting
-- 💾 Lightweight JSON database
-- 📝 Structured logging
-- 🔄 Automatic reconnection
-- ⚙️ Environment-based configuration
-- 🔒 Session and secret protection
-- 🧱 Easy-to-extend architecture
+- 📱 QR Code Authentication
+- 🔢 Pairing Code Authentication
+- 🧩 Modular Command System
+- ⚡ Dynamic Command Loading
+- 🏓 Ping / Bot Status
+- 🤖 AI Chat
+- 🧠 Automatic AI Mode
+- 🔐 AES-256-GCM Encryption
+- 🔓 Secure Decryption
+- 📨 Custom Auto-Reply
+- 👑 Owner Permissions
+- 🛡️ Group Admin Permissions
+- 🚦 AI Rate Limiting
+- 💾 Lightweight JSON Database
+- 📝 Centralized Logging
+- 🔄 Automatic Reconnection
+- ⚙️ Environment-Based Configuration
+- 🔒 Protected Session Storage
 
 ---
 
-📁 Project Structure
+📸 Preview
+
+«Screenshots and demonstrations can be added here as the project grows.»
+
+╭──────────────────────────────╮
+│         🤖 CyrusBot          │
+│                              │
+│  .help                       │
+│  .ping                       │
+│  .ai <question>              │
+│  .aimode on                  │
+│  .encrypt <text>             │
+│  .decrypt <text>             │
+│                              │
+│       Active X              │
+╰──────────────────────────────╯
+
+---
+
+🧠 Architecture
+
+CyrusBot is built around a modular architecture.
+
+The main application handles the WhatsApp connection and message dispatch, while individual features are separated into command modules.
 
 CyrusBot/
+│
 ├── index.js
 ├── config.js
 ├── package.json
@@ -64,98 +93,83 @@ CyrusBot/
 ├── temp/
 └── logs/
 
----
+Why this structure?
 
-🧠 Architecture
-
-CyrusBot follows a modular architecture.
-
-The main connection file does not contain all of the bot's features. Instead, it handles the WhatsApp connection and passes incoming commands to the appropriate command module.
-
-Each command lives independently inside the "commands/" directory.
+Instead of putting every feature into one large file, CyrusBot separates responsibilities.
 
 For example:
 
-commands/
-├── ping.js
-├── ai.js
-├── encrypt.js
-└── decrypt.js
+commands/ping.js
 
-This means you can add or remove functionality without turning "index.js" into a huge file.
+handles the ping command.
 
-Core responsibilities
+commands/ai.js
 
-File| Responsibility
-"index.js"| WhatsApp connection and message dispatch
-"config.js"| Application configuration
-"commandLoader.js"| Automatically discovers commands
-"helpers.js"| Shared utility functions
-"aiProvider.js"| AI API communication
-"rateLimiter.js"| AI usage limits
-"db.js"| Lightweight persistent storage
-"logger.js"| Application logging
-"commands/"| Individual bot features
+handles AI requests.
+
+lib/aiProvider.js
+
+handles communication with the AI provider.
+
+This makes the project easier to:
+
+- 🧠 Understand
+- 🛠️ Maintain
+- 🐛 Debug
+- ➕ Extend
+- ♻️ Reuse
 
 ---
 
-🛠️ Commands
+📋 Commands
 
-CyrusBot uses a configurable command prefix.
-
-The default prefix is:
+The default command prefix is:
 
 .
 
-Available commands
-
 Command| Description
-".ping"| Check whether the bot is online
+".ping"| Check if CyrusBot is online
 ".help"| Display available commands
 ".ai <question>"| Ask the AI a question
 ".aimode on"| Enable automatic AI responses
 ".aimode off"| Disable automatic AI responses
 ".encrypt <text>"| Encrypt text
 ".decrypt <text>"| Decrypt encrypted text
-".setmessage <text>"| Configure the bot's custom auto-reply
+".setmessage <text>"| Configure the custom auto-reply
 
 ---
 
-🤖 AI System
+🤖 AI
 
-CyrusBot includes an AI system powered through the Groq API.
+CyrusBot includes an AI system powered by Groq.
 
-The AI system has two modes.
+Ask a question
 
-One-time AI
+.ai Explain what Python is
 
-.ai What is Python?
-
-The bot processes the question and returns an AI-generated response.
-
-AI Mode
+Enable AI Mode
 
 .aimode on
 
-When enabled, messages that aren't commands can automatically receive AI responses.
+When AI Mode is enabled, normal messages in that chat can be processed by the AI.
 
-Disable it with:
+Disable AI Mode
 
 .aimode off
 
-AI mode can be controlled by the bot owner or an authorized group administrator.
+AI Mode can only be enabled or disabled by authorized users.
 
 ---
 
 🚦 AI Rate Limiting
 
-To prevent excessive AI usage, CyrusBot includes a per-chat daily limit.
+CyrusBot includes a per-chat AI usage limit.
 
-The default is:
+The default limit is:
 
 10 AI responses per chat per day
 
-This can be changed through:
+Change it through:
 
 AI_DAILY_LIMIT=10
 
@@ -165,46 +179,50 @@ The counter automatically resets when the date changes.
 
 🔐 Encryption
 
-CyrusBot includes built-in text encryption using Node.js's native "crypto" module.
+CyrusBot uses Node.js's built-in "crypto" module for encryption.
 
 It uses:
 
-- "scrypt" for password-based key derivation
-- AES-256-GCM for authenticated encryption
-- Random salts
-- Authentication tags
+- 🔑 "scrypt" for key derivation
+- 🔐 AES-256-GCM encryption
+- 🧂 Random salts
+- 🛡️ Authentication tags
 
 No external encryption service is required.
 
-Encrypt
+Example
 
-.encrypt my secret message
+.encrypt Hello CyrusBot
 
-Decrypt
+The resulting encrypted data can then be decrypted using:
 
 .decrypt <encrypted-data>
 
-You can also provide a passphrase explicitly using the supported command format.
+A passphrase can also be supplied when using the supported command format.
 
 ---
 
 🔑 Authentication
 
-CyrusBot supports two WhatsApp authentication methods.
+CyrusBot supports two authentication methods.
 
-QR Code
+📱 QR Code
 
 Set:
 
 AUTH_METHOD=qr
 
-Start the bot and scan the displayed QR code using:
+Start the bot:
 
-WhatsApp → Linked Devices → Link a Device
+npm start
+
+Then scan the QR code from:
+
+«WhatsApp → Linked Devices → Link a Device»
 
 ---
 
-Pairing Code
+🔢 Pairing Code
 
 Set:
 
@@ -214,29 +232,25 @@ Then configure:
 
 PAIRING_NUMBER=234XXXXXXXXXX
 
-The number should contain digits only.
+The phone number should contain digits only.
 
-The bot will display an 8-character pairing code.
+CyrusBot will generate an 8-character pairing code.
 
 Enter it through:
 
-WhatsApp → Linked Devices → Link with phone number instead
+«WhatsApp → Linked Devices → Link with phone number instead»
 
-Once authentication succeeds, the session is stored locally so the bot can reconnect automatically.
+After successful authentication, the session is stored locally for future reconnects.
 
 ---
 
 ⚙️ Configuration
 
-CyrusBot uses environment variables so sensitive information doesn't need to be placed directly inside the source code.
-
 Create your environment file:
 
 cp .env.example .env
 
-Then configure it.
-
-Example:
+Example configuration:
 
 BOT_NAME=CyrusBot
 BOT_AUTHOR=Active X
@@ -259,6 +273,23 @@ DEFAULT_CIPHER_PASSPHRASE=
 
 LOG_LEVEL=info
 
+Configuration Reference
+
+Variable| Description
+"BOT_NAME"| Bot name
+"BOT_AUTHOR"| Bot developer/author
+"GITHUB_USERNAME"| GitHub username
+"PREFIX"| Command prefix
+"OWNER_NUMBER"| Bot owner's WhatsApp number
+"SUDO_NUMBERS"| Additional authorized users
+"AUTH_METHOD"| "qr" or "pairing-code"
+"PAIRING_NUMBER"| Number used for pairing
+"GROQ_API_KEY"| Groq API key
+"GROQ_MODEL"| AI model
+"AI_DAILY_LIMIT"| Daily AI response limit
+"DEFAULT_CIPHER_PASSPHRASE"| Default encryption passphrase
+"LOG_LEVEL"| Logging level
+
 ---
 
 🚀 Installation
@@ -267,46 +298,51 @@ LOG_LEVEL=info
 
 git clone https://github.com/active-X1/CyrusBot.git
 
-Enter the project:
+2. Enter the project
 
 cd CyrusBot
 
-2. Install dependencies
+3. Install dependencies
 
 npm install
 
-3. Configure the environment
+4. Create your environment file
 
 cp .env.example .env
 
-Edit ".env" and add your configuration.
+5. Configure ".env"
 
-4. Start CyrusBot
+Add your:
+
+- WhatsApp number
+- Authentication method
+- Groq API key
+- Bot settings
+
+6. Start CyrusBot
 
 npm start
 
-On the first launch, authenticate your WhatsApp account using either QR code or pairing code.
-
 ---
 
-📋 Requirements
+📦 Requirements
 
-CyrusBot requires:
+Before running CyrusBot, make sure you have:
 
-- Node.js 18+
+- "Node.js" (https://nodejs.org/) 18+
 - npm
 - A WhatsApp account
 - Internet connection
 
-Node.js 20 LTS or newer is recommended.
+«💡 Node.js 20 LTS or newer is recommended.»
 
 ---
 
-🧩 Adding a New Command
+🧩 Creating Commands
 
-One of the main goals of CyrusBot is making development simple.
+Adding a command is intentionally simple.
 
-Create a new file inside:
+Create a file inside:
 
 commands/
 
@@ -314,7 +350,7 @@ For example:
 
 commands/hello.js
 
-A basic command looks like:
+Then:
 
 module.exports = {
   name: 'hello',
@@ -327,45 +363,49 @@ module.exports = {
     await ctx.safeSend(
       sock,
       ctx.chatId,
-      { text: 'Hello from CyrusBot!' },
+      {
+        text: 'Hello from CyrusBot! 🤖'
+      },
       msg
     );
-  },
+  }
 };
 
-Restart the bot and the command will automatically be discovered.
+Restart CyrusBot and the command will automatically be detected.
 
-No changes to "index.js" are required.
+You don't need to manually register the command inside "index.js".
 
 ---
 
 🛡️ Permissions
 
-CyrusBot includes permission helpers for controlling sensitive functionality.
+CyrusBot provides permission handling for protected features.
 
-Supported permission levels include:
+👑 Owner
 
-Owner
+The number specified in:
 
-The configured "OWNER_NUMBER" has full bot-owner privileges.
+OWNER_NUMBER=
 
-Sudo Users
+is treated as the bot owner.
 
-Additional trusted users can be configured through:
+👥 Sudo Users
+
+Additional trusted users can be configured with:
 
 SUDO_NUMBERS=234XXXXXXXXXX,234XXXXXXXXXX
 
-Group Administrators
+🛡️ Group Administrators
 
-Certain group-management features can be restricted to WhatsApp group administrators.
+Group-specific functionality can also check whether the sender is a group administrator.
 
 ---
 
-💾 Data Storage
+💾 Database
 
-CyrusBot currently uses lightweight JSON storage for small pieces of persistent data.
+CyrusBot currently uses lightweight JSON storage for small amounts of persistent data.
 
-Runtime data is stored under:
+Runtime database files are stored inside:
 
 database/
 
@@ -374,10 +414,10 @@ This is suitable for:
 - Counters
 - Settings
 - Flags
-- AI usage information
-- Small amounts of bot state
+- AI usage data
+- Small bot state
 
-For a much larger deployment, the storage layer can later be replaced with a proper database without redesigning the entire command system.
+The storage layer can be replaced with a proper database later if the project grows.
 
 ---
 
@@ -385,15 +425,11 @@ For a much larger deployment, the storage layer can later be replaced with a pro
 
 CyrusBot uses a centralized logger.
 
-Logs are available through:
+Logs are stored in:
 
 logs/bot.log
 
-The logging level can be configured with:
-
-LOG_LEVEL=info
-
-Supported levels include:
+Logging levels:
 
 fatal
 error
@@ -402,21 +438,23 @@ info
 debug
 trace
 
-Errors are logged internally while users receive safe, generic error messages instead of internal stack traces.
+Configure the level with:
+
+LOG_LEVEL=info
 
 ---
 
-🔄 Automatic Reconnection
+🔄 Connection Handling
 
-CyrusBot handles temporary connection failures automatically.
+CyrusBot includes automatic reconnection handling.
 
-The connection system uses controlled reconnect attempts with backoff rather than continuously creating recursive connection calls.
+Temporary connection failures are handled through controlled reconnect attempts with backoff.
 
-This helps prevent:
+This helps avoid:
 
-- Infinite reconnect loops
+- Infinite recursive reconnects
+- Duplicate listeners
 - Growing call stacks
-- Duplicate event listeners
 - Unnecessary resource usage
 
 ---
@@ -425,24 +463,22 @@ This helps prevent:
 
 Security is an important part of CyrusBot.
 
-Never commit:
+🚨 Never commit these files:
 
 .env
 sessions/
 database/*.json
 logs/
 
-The repository's ".gitignore" is configured to protect runtime data and sensitive configuration.
+The ".gitignore" file is configured to protect sensitive runtime data.
 
-⚠️ Protect your WhatsApp session
+⚠️ Protect Your Session
 
-The "sessions/" directory contains authentication credentials for the linked WhatsApp account.
+The "sessions/" directory contains WhatsApp authentication credentials.
 
-Never upload or share it.
+Never upload or share your session files.
 
-If someone obtains your session credentials, they may be able to access the linked WhatsApp account.
-
-If you believe your session has been compromised:
+If your session may have been exposed:
 
 1. Open WhatsApp.
 2. Go to Linked Devices.
@@ -454,29 +490,25 @@ If you believe your session has been compromised:
 
 🐛 Troubleshooting
 
-Bot doesn't respond
+❌ Commands aren't responding
 
-Check that:
-
-PREFIX
-
-matches the prefix you're using.
+Check that your prefix is correct.
 
 For example:
 
 PREFIX=.
 
-means commands should look like:
+means you should use:
 
 .ping
 
 ---
 
-Commands aren't loading
+❌ Commands aren't loading
 
-Check the terminal for the command-loader output.
+Check the terminal output for command-loader messages.
 
-Make sure command files export:
+Make sure your command exports an object containing at least:
 
 module.exports = {
   name: 'command',
@@ -485,86 +517,96 @@ module.exports = {
 
 ---
 
-AI isn't responding
+❌ AI isn't working
 
 Check:
 
 GROQ_API_KEY=
 
-Make sure the API key is valid and correctly configured.
-
-Also check the terminal logs for API or rate-limit errors.
+Make sure the API key is valid and properly configured.
 
 ---
 
-Authentication keeps appearing again
+❌ Bot keeps requesting authentication
 
 Make sure the:
 
 sessions/
 
-directory exists and is writable.
+directory is writable and isn't being deleted between restarts.
 
-If the WhatsApp session was intentionally logged out, remove the old session and authenticate again.
+If the session was logged out, remove the old session and authenticate again.
 
 ---
 
-📌 Roadmap
+🗺️ Roadmap
 
-CyrusBot is designed to grow over time.
+CyrusBot is actively designed to be expandable.
 
-Possible future features include:
+Planned / Possible Features
 
-- [ ] More utility commands
-- [ ] Media commands
-- [ ] Group-management tools
-- [ ] Advanced admin controls
-- [ ] Better database support
-- [ ] More AI features
-- [ ] Plugin-style extensions
-- [ ] Custom bot settings
-- [ ] Improved command categories
-- [ ] More automation features
-- [ ] Web dashboard
+- [ ] 📥 Media handling
+- [ ] 👥 Advanced group management
+- [ ] 🎮 Games
+- [ ] 🛠️ More utility commands
+- [ ] 🤖 Expanded AI features
+- [ ] 🗄️ Database integration
+- [ ] 🌐 Web dashboard
+- [ ] 🔌 Plugin system
+- [ ] ⚙️ Advanced bot settings
+- [ ] 📊 Bot statistics
+- [ ] 🧰 More developer utilities
+
+---
+
+🤝 Contributing
+
+Contributions, suggestions, and improvements are welcome.
+
+Fork the repository
+
+git clone https://github.com/active-X1/CyrusBot.git
+
+Create your feature:
+
+git checkout -b feature/my-feature
+
+Make your changes, test them, and submit a pull request.
 
 ---
 
 👨‍💻 Developer
 
-Active X
+<p align="center">
+  <img src="https://github.com/active-X1.png" width="100" height="100" alt="Active X">
+</p><h3 align="center">Active X</h3><p align="center">
+  Python & JavaScript Developer • Builder • Learner
+</p><p align="center">
+  <a href="https://github.com/active-X1">
+    GitHub
+  </a>
+</p>---
 
-GitHub:
+⭐ Support
 
-https://github.com/active-X1
+If you find CyrusBot useful, consider giving the repository a ⭐.
 
-CyrusBot is part of my journey of building real-world software, learning backend development, and improving my understanding of JavaScript and WhatsApp automation.
+It helps support the project and encourages further development.
 
 ---
 
 📜 License
 
-This project is provided for educational and development purposes.
+This project is intended for educational and development purposes.
 
-Use CyrusBot responsibly and follow WhatsApp's applicable terms and policies.
-
----
-
-⭐ Support the Project
-
-If you find CyrusBot useful:
-
-⭐ Star the repository
-🍴 Fork the project
-🐛 Report bugs
-💡 Suggest features
-🤝 Contribute improvements
-
-Every contribution helps the project grow.
+Please use CyrusBot responsibly and respect WhatsApp's applicable terms and policies.
 
 ---
 
-💙 CyrusBot
+<p align="center">🤖 CyrusBot
 
-Built by Active X.
+Built with JavaScript • Powered by Baileys • Created by Active X
 
 «Build. Learn. Break. Fix. Improve.»
+
+</p>
