@@ -1,91 +1,42 @@
 // commands/decrypt.js
 //
-// Usage:
-//   .decrypt <passphrase> | <token>
-//   .decrypt <token>                (uses DEFAULT_CIPHER_PASSPHRASE from .env)
+//   .decrypt <token>            -> shows the original message
+//   (or reply to a token message with .decrypt)
 //
-// Reverses the format produced by commands/encrypt.js. Any error (wrong
-// passphrase, corrupted token, tampered data) is caught and reported as
-// a friendly message rather than a stack trace, since GCM's auth tag
-// verification throwing is the *expected* way wrong passphrases surface.
-
-const crypto = require('crypto');
-const config = require('../config');
-const { SALT_LEN, IV_LEN } = require('./encrypt')._internal;
-
-const KEY_LEN = 32;
-
-function decryptToken(token, passphrase) {
-  const buf = Buffer.from(token, 'base64url');
-  if (buf.length <= SALT_LEN + IV_LEN + 16) {
-    throw new Error('Token is too short to be valid');
-  }
-
-  const salt = buf.subarray(0, SALT_LEN);
-  const iv = buf.subarray(SALT_LEN, SALT_LEN + IV_LEN);
-  const authTag = buf.subarray(SALT_LEN + IV_LEN, SALT_LEN + IV_LEN + 16);
-  const ciphertext = buf.subarray(SALT_LEN + IV_LEN + 16);
-
-  const key = crypto.scryptSync(passphrase, salt, KEY_LEN);
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
-  decipher.setAuthTag(authTag);
-
-  const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-  return plaintext.toString('utf8');
-}
-
-function parseArgs(rawArgsText) {
-  if (rawArgsText.includes('|')) {
-    const [passphrase, ...rest] = rawArgsText.split('|');
-    return { passphrase: passphrase.trim(), token: rest.join('|').trim() };
-  }
-  return { passphrase: config.defaultCipherPassphrase, token: rawArgsText.trim() };
-}
+// Works on tokens made by THIS bot's .encrypt (same auto-generated key).
+// Wrong/damaged/foreign tokens all give the same friendly error - GCM's
+// auth check failing is the normal way a bad token shows up.
+const ui = require('../lib/ui');
+const cipher = require('../lib/cipher');
+const { extractText } = require('../lib/helpers');
 
 module.exports = {
   name: 'decrypt',
   aliases: [],
-  description: 'Decrypt a token produced by ".encrypt": ".decrypt <passphrase> | <token>".',
+  description: 'Decrypt a message',
+  emoji: '🔓',
   category: 'utility',
   ownerOnly: false,
   async execute(sock, msg, args, ctx) {
-    const rawArgsText = args.join(' ').replace(/```/g, '');
-    if (!rawArgsText.trim()) {
-      return ctx.safeSend(
-        sock,
-        ctx.chatId,
-        { text: `Usage: ${config.prefix}decrypt <passphrase> | <token>\nOr: ${config.prefix}decrypt <token>  (uses the default passphrase)` },
-        { quoted: msg }
-      );
-    }
+    const reply = (text) => ctx.safeSend(sock, ctx.chatId, { text }, { quoted: msg });
 
-    const { passphrase, token } = parseArgs(rawArgsText);
-
-    if (!passphrase) {
-      return ctx.safeSend(
-        sock,
-        ctx.chatId,
-        { text: 'No passphrase was given and DEFAULT_CIPHER_PASSPHRASE is not set.' },
-        { quoted: msg }
-      );
+    let raw = args.join(' ');
+    if (!raw.trim()) {
+      const quoted = msg.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+      if (quoted) raw = extractText({ message: quoted });
     }
+    // Remove ``` fences, quotes and any whitespace/line-breaks from copying.
+    const token = raw.replace(/```/g, '').replace(/[\s"'`]/g, '');
     if (!token) {
-      return ctx.safeSend(sock, ctx.chatId, { text: 'No token to decrypt was provided.' }, { quoted: msg });
+      return reply(ui.usage('decrypt', '<token>', 'Or reply to a token message with .decrypt'));
     }
 
     try {
-      const plaintext = decryptToken(token, passphrase);
-      await ctx.safeSend(sock, ctx.chatId, { text: `🔓 Decrypted:\n${plaintext}` }, { quoted: msg });
+      const plaintext = cipher.decrypt(token);
+      await reply(ui.box('🔓 DECRYPTED', [plaintext]));
     } catch (err) {
-      // Wrong passphrase and corrupted input both land here - by design
-      // we don't tell the user which one, to avoid leaking information.
       ctx.logger.warn({ err: err.message }, 'Decryption failed');
-      await ctx.safeSend(
-        sock,
-        ctx.chatId,
-        { text: '❌ Could not decrypt: wrong passphrase or invalid/corrupted token.' },
-        { quoted: msg }
-      );
+      await reply(ui.error('Could not decrypt that.\nIt is invalid, damaged, or was not made by this bot.'));
     }
   },
 };

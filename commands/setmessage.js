@@ -1,70 +1,95 @@
-// commands/setmessage.js
+// commands/setmessage.js  (owner only)
 //
-// Owner-only. Sets a custom auto-reply message that CyrusBot sends once
-// per DM conversation to greet/inform people who message the owner
-// directly while AI mode is off for that chat (e.g. "I'm away right
-// now, I'll get back to you soon!").
+// Your auto-reply message.
+//   .setmessage <text>   -> set the message (and keep it on/off as it was)
+//   .setmessage on|off   -> turn the auto-reply on or off
+//   .setmessage clear    -> delete the message
+//   .setmessage          -> show status + current message
 //
-// NOTE: the original request only said ".setmessage" without describing
-// its exact behaviour, so this is an explicit assumption - it's wired
-// up cleanly (persisted via lib/db.js, read by index.js) so it's easy
-// to repurpose if you meant something else (e.g. a group welcome
-// message - see commands aimode.js for the pattern to copy).
+// WHERE it replies (handled in index.js -> maybeSendAutoReply):
+//   - DMs: yes, once per day per chat.
+//   - Groups: NO - except when your account is @mentioned or someone
+//     replies to one of your messages (once per day per person).
+//   - Never to your own messages, and not in chats where AI mode is on.
 //
-// Usage:
-//   .setmessage <text>   -> sets the message
-//   .setmessage clear    -> removes it (auto-reply turns off)
-//   .setmessage          -> shows the current message
+// Reserved words: a message that is exactly "on", "off" or "clear"
+// can't be saved, because those are the switches above.
 
 const { readJson, writeJson } = require('../lib/db');
+const ui = require('../lib/ui');
 
 const STORE_NAME = 'settings';
 
-function getAutoReply() {
-  const settings = readJson(STORE_NAME, {});
-  return settings.autoReplyMessage || '';
+function load() {
+  return readJson(STORE_NAME, {});
 }
 
-function setAutoReply(text) {
-  const settings = readJson(STORE_NAME, {});
-  if (text) {
-    settings.autoReplyMessage = text;
-  } else {
-    delete settings.autoReplyMessage;
-  }
+function isEnabled(settings = load()) {
+  return settings.autoReplyEnabled !== false; // default: on
+}
+
+/** Used by index.js. Returns '' when no message is set OR it is switched off. */
+function getAutoReply() {
+  const settings = load();
+  return isEnabled(settings) ? settings.autoReplyMessage || '' : '';
+}
+
+function save(patch) {
+  const settings = { ...load(), ...patch };
+  for (const [k, v] of Object.entries(settings)) if (v === undefined) delete settings[k];
   writeJson(STORE_NAME, settings);
 }
 
 module.exports = {
   name: 'setmessage',
   aliases: [],
-  description: "Owner only. Set the bot's custom DM auto-reply text: \".setmessage <text>\" (or \"clear\").",
+  description: 'Set DM auto-reply (on/off)',
+  emoji: '💬',
   category: 'admin',
   ownerOnly: true,
-  getAutoReply, // exported for index.js to use when routing DMs
+  getAutoReply, // used by index.js
   async execute(sock, msg, args, ctx) {
-    const text = args.join(' ').trim();
+    const reply = (text) => ctx.safeSend(sock, ctx.chatId, { text }, { quoted: msg });
+    const input = args.join(' ').trim();
+    const word = input.toLowerCase();
+    const p = ctx.config.prefix;
 
-    if (!text) {
-      const current = getAutoReply();
-      return ctx.safeSend(
-        sock,
-        ctx.chatId,
-        {
-          text: current
-            ? `Current auto-reply message:\n"${current}"`
-            : 'No auto-reply message is set. Use ".setmessage <text>" to set one.',
-        },
-        { quoted: msg }
+    if (word === 'on' || word === 'off') {
+      const settings = load();
+      save({ autoReplyEnabled: word === 'on' });
+      const note = word === 'on' && !settings.autoReplyMessage ? `\n⚠️ No message yet. Use ${p}setmessage <text>` : '';
+      return reply(ui.box('💬 AUTO-REPLY', [word === 'on' ? '🟢 Turned ON' : '🔴 Turned OFF']) + note);
+    }
+
+    if (word === 'clear') {
+      save({ autoReplyMessage: undefined });
+      return reply(ui.box('💬 AUTO-REPLY', ['🗑️ Message cleared']));
+    }
+
+    if (!input) {
+      const settings = load();
+      return reply(
+        ui.box('💬 AUTO-REPLY', [
+          `📡 Status  : ${isEnabled(settings) ? '🟢 ON' : '🔴 OFF'}`,
+          `📝 Message : ${settings.autoReplyMessage ? `"${settings.autoReplyMessage}"` : 'not set'}`,
+          '',
+          '📍 Replies in: DMs, plus groups only when',
+          'you are @mentioned or your message is replied to',
+          '',
+          `⚙️ ${p}setmessage <text> | on | off | clear`,
+        ])
       );
     }
 
-    if (text.toLowerCase() === 'clear') {
-      setAutoReply('');
-      return ctx.safeSend(sock, ctx.chatId, { text: '🗑️ Auto-reply message cleared.' }, { quoted: msg });
-    }
-
-    setAutoReply(text);
-    await ctx.safeSend(sock, ctx.chatId, { text: `✅ Auto-reply message set:\n"${text}"` }, { quoted: msg });
+    save({ autoReplyMessage: input });
+    const on = isEnabled();
+    return reply(
+      ui.box('💬 AUTO-REPLY', [
+        '✅ Message saved:',
+        `"${input}"`,
+        '',
+        `📡 Status: ${on ? '🟢 ON' : '🔴 OFF (use ' + p + 'setmessage on)'}`,
+      ])
+    );
   },
 };

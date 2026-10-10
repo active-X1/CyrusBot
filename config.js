@@ -30,12 +30,31 @@ function normalizeAuthMethod(raw) {
 
 const resolvedAuthMethod = normalizeAuthMethod(process.env.AUTH_METHOD);
 
+// The primary prefix (PREFIX, default ".") plus any extra prefixes
+// (EXTRA_PREFIXES, a comma-separated list, default "!") that should
+// ALSO trigger every command. New variable, old PREFIX untouched, so
+// anyone already relying on PREFIX keeps working unchanged.
+const extraPrefixes = (process.env.EXTRA_PREFIXES ?? '!')
+  .split(',')
+  .map((p) => p.trim())
+  .filter(Boolean);
+
+const primaryPrefix = process.env.PREFIX || '.';
+
+// Render only sets RENDER_EXTERNAL_URL for services deployed as a "Web
+// Service" (not a "Background Worker"). PUBLIC_URL lets you override it
+// manually for any other host. Empty string means "no public URL is
+// available" - callers (lib/gameServer.js, commands/*game.js) must
+// handle that by falling back gracefully, never by crashing.
+const publicUrl = (process.env.PUBLIC_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/+$/, '');
+
 const config = {
-  botName: process.env.BOT_NAME || 'CyrusBot',
-  botAuthor: process.env.BOT_AUTHOR || 'Active X',
+  botName: process.env.BOT_NAME || 'activeX',
+  botAuthor: process.env.BOT_AUTHOR || 'Cyrus Akacha Cyprian',
   githubUsername: process.env.GITHUB_USERNAME || 'active-X1',
 
-  prefix: process.env.PREFIX || '.',
+  prefix: primaryPrefix, // kept for anything that still wants "the" prefix (e.g. example text)
+  prefixes: [...new Set([primaryPrefix, ...extraPrefixes])], // what message parsing actually uses
 
   ownerNumber: digitsOnly(process.env.OWNER_NUMBER),
   sudoNumbers: parseNumberList(process.env.SUDO_NUMBERS),
@@ -48,13 +67,21 @@ const config = {
   authMethodExplicit: resolvedAuthMethod !== null,
   pairingNumber: digitsOnly(process.env.PAIRING_NUMBER || process.env.OWNER_NUMBER),
 
-  groqApiKey: process.env.GROQ_API_KEY || '',
-  groqModel: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+  openrouterApiKey: process.env.OPENROUTER_API_KEY || '',
+  // "openrouter/free" = OpenRouter's router that picks an available free model.
+  openrouterModel: process.env.OPENROUTER_MODEL || 'openrouter/free',
   aiDailyLimit: Number.parseInt(process.env.AI_DAILY_LIMIT, 10) || 10,
 
-  defaultCipherPassphrase: process.env.DEFAULT_CIPHER_PASSPHRASE || '',
+  // Optional: pin the .encrypt/.decrypt key (see lib/cipher.js). Empty = auto-generated.
+  cipherKey: process.env.CIPHER_KEY || '',
 
   logLevel: process.env.LOG_LEVEL || 'info',
+
+  // Used by lib/gameServer.js (.snakegame / .aimgame). publicUrl is ''
+  // when no public URL could be determined - commands must fall back
+  // to sending the game as a file instead of a link in that case.
+  publicUrl,
+  port: Number.parseInt(process.env.PORT, 10) || 3000,
 
   paths: {
     sessions: './sessions',
@@ -63,6 +90,7 @@ const config = {
     downloads: './downloads',
     temp: './temp',
     media: './media',
+    games: './games',
   },
 };
 

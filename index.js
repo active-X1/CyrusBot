@@ -24,16 +24,19 @@ const {
 const config = require('./config');
 const logger = require('./lib/logger');
 const { loadCommands } = require('./lib/commandLoader');
-const { readJson, writeJson } = require('./lib/db');
 const {
   isOwner,
   canManageChat,
   safeSend,
   extractText,
+  matchPrefix,
 } = require('./lib/helpers');
+const { maybeSendAutoReply } = require('./lib/autoReply');
 const rateLimiter = require('./lib/rateLimiter');
 const { askAI, AIProviderError } = require('./lib/aiProvider');
-const { resolveAuthMethod } = require('./lib/authSetup');
+const ui = require('./lib/ui');
+const { resolveAuthMethod, resetSession } = require('./lib/authSetup');
+const { startGameServer } = require('./lib/gameServer');
 
 const SESSIONS_PATH = path.resolve(config.paths.sessions);
 
@@ -52,24 +55,6 @@ function refreshCommands() {
 }
 
 /**
- * Send the owner-configured DM auto-reply once per day per chat, if one
- * is set. See commands/setmessage.js for how it's configured.
- */
-function maybeSendAutoReply(sock, chatId) {
-  const setmessageCmd = commandRegistry.get('setmessage');
-  const autoReply = setmessageCmd?.getAutoReply?.();
-  if (!autoReply) return;
-
-  const today = new Date().toISOString().slice(0, 10);
-  const sentLog = readJson('autoreply-sent', {});
-  if (sentLog[chatId] === today) return;
-
-  sentLog[chatId] = today;
-  writeJson('autoreply-sent', sentLog);
-  safeSend(sock, chatId, { text: autoReply });
-}
-
-/**
  * Route one incoming message: parse for a command, enforce permissions,
  * execute it, and fall back to AI-mode auto-reply / the DM auto-reply
  * when nothing matches. Every branch is wrapped so a single bad message
@@ -81,16 +66,24 @@ async function handleIncomingMessage(sock, msg) {
     if (msg.key.remoteJid === 'status@broadcast') return;
 
     const chatId = msg.key.remoteJid;
-    const senderJid = msg.key.participant || msg.key.remoteJid;
+    // Who actually wrote this? In a DM, key.remoteJid is the OTHER person
+    // even when WE sent the message (from our own phone), so for our own
+    // messages the sender is the bot's own account.
+    const senderJid = msg.key.fromMe
+      ? sock.user?.id || msg.key.remoteJid
+      : msg.key.participant || msg.key.remoteJid;
     const isGroup = chatId.endsWith('@g.us');
     const text = extractText(msg);
     if (!text) return;
+
+    const senderAltJid = msg.key.participantAlt || msg.key.remoteJidAlt;
 
     const ctx = {
       chatId,
       senderJid,
       isGroup,
-      isOwner: isOwner(senderJid),
+      senderAltJid, // the same person's other address form (phone vs @lid), when WhatsApp gives it
+      isOwner: Boolean(msg.key.fromMe) || isOwner(senderJid, senderAltJid), // our own account is, by definition, the owner
       config,
       logger,
       commands: commandList,
@@ -98,15 +91,16 @@ async function handleIncomingMessage(sock, msg) {
       canManageChat,
     };
 
-    if (text.startsWith(config.prefix)) {
-      const [rawCommand, ...args] = text.slice(config.prefix.length).trim().split(/\s+/);
+    const prefixMatch = matchPrefix(text, config.prefixes);
+    if (prefixMatch) {
+      const [rawCommand, ...args] = prefixMatch.rest.trim().split(/\s+/);
       const commandName = rawCommand.toLowerCase();
       const command = commandRegistry.get(commandName);
 
       if (!command) return; // unknown command: stay silent, don't spam "unknown command" in busy groups
 
       if (command.ownerOnly && !ctx.isOwner) {
-        await safeSend(sock, chatId, { text: '🚫 This command is owner-only.' }, { quoted: msg });
+        await safeSend(sock, chatId, { text: ui.denied('This command is owner-only 👑') }, { quoted: msg });
         return;
       }
 
@@ -117,7 +111,8 @@ async function handleIncomingMessage(sock, msg) {
         await safeSend(
           sock,
           chatId,
-          { text: `❌ Something went wrong running "${config.prefix}${commandName}". The error has been logged.` },
+          { text: ui.error(`Something went wrong running ${prefixMatch.prefix}${commandName}.
+The error has been logged.`) },
           { quoted: msg }
         );
       }
@@ -138,16 +133,14 @@ async function handleIncomingMessage(sock, msg) {
       } catch (err) {
         const message = err instanceof AIProviderError ? err.userMessage : 'Something went wrong. Please try again later.';
         logger.error({ err: err.message }, 'AI-mode auto-reply failed');
-        await safeSend(sock, chatId, { text: `❌ ${message}` }, { quoted: msg });
+        await safeSend(sock, chatId, { text: ui.error(message) }, { quoted: msg });
       }
       return;
     }
 
-    // Neither a command nor AI mode: optionally send the owner's
-    // configured DM auto-reply (see commands/setmessage.js).
-    if (!isGroup) {
-      maybeSendAutoReply(sock, chatId);
-    }
+    // Neither a command nor AI mode: maybe send the owner's auto-reply
+    // (DMs always; groups only when mentioned / replied to).
+    maybeSendAutoReply(sock, msg, { chatId, senderJid, isGroup }, commandRegistry.get('setmessage')?.getAutoReply);
   } catch (err) {
     // Absolute last line of defense: nothing from message handling
     // should ever escape and crash the process.
@@ -184,12 +177,16 @@ async function connectOnce(authChoice) {
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('messages.upsert', async (update) => {
-    const msg = update.messages?.[0];
-    if (!msg) return;
-    if (msg.message?.ephemeralMessage) {
-      msg.message = msg.message.ephemeralMessage.message;
+    // Only live messages ('notify'). Baileys also emits 'append' events for
+    // the bot's OWN sent messages and for offline backlog - handling those
+    // could make the bot answer itself or reply to old messages.
+    if (update.type !== 'notify') return;
+    for (const msg of update.messages || []) {
+      if (msg.message?.ephemeralMessage) {
+        msg.message = msg.message.ephemeralMessage.message;
+      }
+      await handleIncomingMessage(sock, msg);
     }
-    await handleIncomingMessage(sock, msg);
   });
 
   if (authChoice.method === 'pairing-code' && !sock.authState.creds.registered) {
@@ -228,8 +225,8 @@ async function connectOnce(authChoice) {
         const loggedOut = statusCode === DisconnectReason.loggedOut;
 
         if (loggedOut) {
-          logger.warn('Session logged out. Delete the sessions/ folder and restart to re-authenticate.');
-          resolve({ sock, shouldReconnect: false });
+          logger.warn('WhatsApp logged this device out. The old session will be cleared and you will be asked to log in again.');
+          resolve({ sock, shouldReconnect: true, loggedOut: true });
         } else {
           logger.warn({ statusCode }, 'Connection closed, will attempt to reconnect');
           resolve({ sock, shouldReconnect: true });
@@ -245,10 +242,13 @@ let shuttingDown = false;
 async function main() {
   refreshCommands();
 
-  // Resolved ONCE, before the reconnect loop, so the QR-vs-pairing-code
-  // choice (and any interactive prompt) never happens more than once
-  // per process, and every reconnect reuses the same decision.
-  const authChoice = await resolveAuthMethod();
+  // Game HTTP server: started once, never per reconnect.
+  startGameServer();
+
+  // Decided before the loop (and asked at most once per login), so normal
+  // reconnects reuse the same choice. It is asked again only when a fresh
+  // login is needed: no saved session, or WhatsApp logged us out.
+  let authChoice = await resolveAuthMethod();
 
   let backoffMs = 2000;
   const MAX_BACKOFF_MS = 30_000;
@@ -256,10 +256,19 @@ async function main() {
   // Iterative reconnect loop (not recursive) so the call stack never
   // grows and old listeners are dropped each cycle instead of piling up.
   while (!shuttingDown) {
-    const { sock, shouldReconnect } = await connectOnce(authChoice);
+    const { sock, shouldReconnect, loggedOut } = await connectOnce(authChoice);
     currentSock = sock;
 
     if (!shouldReconnect || shuttingDown) break;
+
+    if (loggedOut) {
+      // The saved login is dead. Clear it and start a fresh login
+      // (asks phone number vs QR again when a terminal is available).
+      resetSession();
+      authChoice = await resolveAuthMethod();
+      backoffMs = 2000;
+      continue;
+    }
 
     await new Promise((r) => setTimeout(r, backoffMs));
     backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);

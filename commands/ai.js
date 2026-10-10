@@ -3,10 +3,13 @@ const config = require('../config');
 const { askAI, AIProviderError } = require('../lib/aiProvider');
 const rateLimiter = require('../lib/rateLimiter');
 
+const ui = require('../lib/ui');
+
 module.exports = {
   name: 'ai',
   aliases: [],
-  description: 'Ask the AI a one-off question: ".ai <question>". Subject to the daily limit.',
+  description: 'Ask the AI a question',
+  emoji: '🧠',
   category: 'ai',
   ownerOnly: false,
   async execute(sock, msg, args, ctx) {
@@ -15,7 +18,7 @@ module.exports = {
       return ctx.safeSend(
         sock,
         ctx.chatId,
-        { text: `Usage: ${config.prefix}ai <your question>` },
+        { text: ui.usage('ai', '<your question>', 'Ask the AI anything') },
         { quoted: msg }
       );
     }
@@ -25,7 +28,7 @@ module.exports = {
       return ctx.safeSend(
         sock,
         ctx.chatId,
-        { text: `⏳ Daily AI limit reached (${limit.limit}/day for this chat). Try again tomorrow.` },
+        { text: ui.notice('⏳', 'LIMIT REACHED', `Daily AI limit hit (${limit.limit}/day for this chat).\nTry again tomorrow 🌙`) },
         { quoted: msg }
       );
     }
@@ -38,13 +41,13 @@ module.exports = {
       await ctx.safeSend(
         sock,
         ctx.chatId,
-        { text: `${answer}\n\n_${remaining} AI ${remaining === 1 ? 'reply' : 'replies'} left today._` },
+        { text: ui.box('🧠 AI', [answer, '', `📊 ${remaining} ${remaining === 1 ? 'reply' : 'replies'} left today`]) },
         { quoted: msg }
       );
     } catch (err) {
       const message = err instanceof AIProviderError ? err.userMessage : 'Something went wrong. Please try again later.';
       ctx.logger.error({ err: err.message }, 'AI command failed');
-      await ctx.safeSend(sock, ctx.chatId, { text: `❌ ${message}` }, { quoted: msg });
+      await ctx.safeSend(sock, ctx.chatId, { text: ui.error(message) }, { quoted: msg });
     }
   },
 };

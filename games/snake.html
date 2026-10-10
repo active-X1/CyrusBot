@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>CyrusBot Snake</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    html, body {
+        height: 100%;
+    }
+
+    body {
+        background: #080b12;
+        color: white;
+        font-family: Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: env(safe-area-inset-top, 12px) 12px env(safe-area-inset-bottom, 12px);
+    }
+
+    .game {
+        text-align: center;
+        width: 100%;
+        max-width: 420px;
+    }
+
+    h1 {
+        margin-bottom: 6px;
+        color: #00ff88;
+        font-size: 22px;
+    }
+
+    .score {
+        font-size: 18px;
+        margin-bottom: 12px;
+    }
+
+    canvas {
+        background: #111827;
+        border: 3px solid #00ff88;
+        border-radius: 10px;
+        width: 100%;
+        max-width: 360px;
+        height: auto;
+        aspect-ratio: 1 / 1;
+        touch-action: none;
+    }
+
+    .controls {
+        margin-top: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .dpad-row {
+        display: flex;
+        gap: 6px;
+    }
+
+    .dpad-btn {
+        width: 56px;
+        height: 56px;
+        border: none;
+        border-radius: 12px;
+        background: #1f2937;
+        color: #00ff88;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .dpad-btn:active {
+        background: #00ff88;
+        color: #080b12;
+    }
+
+    .spacer {
+        width: 56px;
+        height: 56px;
+    }
+
+    button.restart {
+        margin-top: 18px;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 8px;
+        background: #00ff88;
+        color: #000;
+        font-weight: bold;
+        font-size: 15px;
+    }
+
+    .hint {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #8899aa;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="game">
+    <h1>🐍 CyrusBot Snake</h1>
+    <div class="score">Score: <span id="score">0</span></div>
+
+    <canvas id="game" width="400" height="400"></canvas>
+
+    <div class="controls">
+        <div class="dpad-row">
+            <div class="spacer"></div>
+            <button class="dpad-btn" id="btn-up">⬆️</button>
+            <div class="spacer"></div>
+        </div>
+        <div class="dpad-row">
+            <button class="dpad-btn" id="btn-left">⬅️</button>
+            <button class="dpad-btn" id="btn-down">⬇️</button>
+            <button class="dpad-btn" id="btn-right">➡️</button>
+        </div>
+    </div>
+
+    <button class="restart" id="restart-btn">Restart Game</button>
+    <div class="hint">Swipe or use the arrows • CyrusBot</div>
+</div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const grid = 20;
+let snake;
+let food;
+let dx;
+let dy;
+let score;
+let gameOver;
+
+function startGame() {
+    snake = [
+        {x: 200, y: 200},
+        {x: 180, y: 200},
+        {x: 160, y: 200}
+    ];
+
+    food = {
+        x: Math.floor(Math.random() * 20) * grid,
+        y: Math.floor(Math.random() * 20) * grid
+    };
+
+    dx = grid;
+    dy = 0;
+    score = 0;
+    gameOver = false;
+
+    document.getElementById("score").textContent = score;
+}
+
+function draw() {
+    if (gameOver) return;
+
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Food
+    ctx.fillStyle = "#ff3355";
+    ctx.fillRect(food.x, food.y, grid - 2, grid - 2);
+
+    // Snake
+    snake.forEach((part, index) => {
+        ctx.fillStyle = index === 0 ? "#00ff88" : "#00cc6a";
+        ctx.fillRect(part.x, part.y, grid - 2, grid - 2);
+    });
+
+    const head = {
+        x: snake[0].x + dx,
+        y: snake[0].y + dy
+    };
+
+    // Wall collision
+    if (
+        head.x < 0 ||
+        head.x >= canvas.width ||
+        head.y < 0 ||
+        head.y >= canvas.height
+    ) {
+        endGame();
+        return;
+    }
+
+    // Body collision
+    for (let i = 0; i < snake.length; i++) {
+        if (head.x === snake[i].x && head.y === snake[i].y) {
+            endGame();
+            return;
+        }
+    }
+
+    snake.unshift(head);
+
+    // Eat food
+    if (head.x === food.x && head.y === food.y) {
+        score++;
+        document.getElementById("score").textContent = score;
+
+        food = {
+            x: Math.floor(Math.random() * 20) * grid,
+            y: Math.floor(Math.random() * 20) * grid
+        };
+    } else {
+        snake.pop();
+    }
+}
+
+function endGame() {
+    gameOver = true;
+
+    setTimeout(() => {
+        alert("Game Over! Score: " + score);
+    }, 100);
+}
+
+function restartGame() {
+    startGame();
+}
+
+function goUp()    { if (dy === 0) { dx = 0; dy = -grid; } }
+function goDown()  { if (dy === 0) { dx = 0; dy = grid;  } }
+function goLeft()  { if (dx === 0) { dx = -grid; dy = 0; } }
+function goRight() { if (dx === 0) { dx = grid;  dy = 0; } }
+
+// Keyboard controls (secondary, e.g. WhatsApp Desktop/Web)
+document.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp") goUp();
+    if (e.key === "ArrowDown") goDown();
+    if (e.key === "ArrowLeft") goLeft();
+    if (e.key === "ArrowRight") goRight();
+});
+
+// Touch D-pad (primary, for WhatsApp Android WebView)
+document.getElementById("btn-up").addEventListener("touchstart", (e) => { e.preventDefault(); goUp(); }, { passive: false });
+document.getElementById("btn-down").addEventListener("touchstart", (e) => { e.preventDefault(); goDown(); }, { passive: false });
+document.getElementById("btn-left").addEventListener("touchstart", (e) => { e.preventDefault(); goLeft(); }, { passive: false });
+document.getElementById("btn-right").addEventListener("touchstart", (e) => { e.preventDefault(); goRight(); }, { passive: false });
+// Also handle plain clicks (desktop browsers / WhatsApp Web fallback)
+document.getElementById("btn-up").addEventListener("click", goUp);
+document.getElementById("btn-down").addEventListener("click", goDown);
+document.getElementById("btn-left").addEventListener("click", goLeft);
+document.getElementById("btn-right").addEventListener("click", goRight);
+
+// Swipe gestures on the canvas itself
+let touchStartX = 0;
+let touchStartY = 0;
+canvas.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+}, { passive: true });
+canvas.addEventListener("touchend", (e) => {
+    const dxSwipe = e.changedTouches[0].clientX - touchStartX;
+    const dySwipe = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dxSwipe) > Math.abs(dySwipe)) {
+        if (dxSwipe > 20) goRight();
+        else if (dxSwipe < -20) goLeft();
+    } else {
+        if (dySwipe > 20) goDown();
+        else if (dySwipe < -20) goUp();
+    }
+}, { passive: true });
+
+document.getElementById("restart-btn").addEventListener("click", restartGame);
+
+startGame();
+
+setInterval(draw, 100);
+</script>
+
+</body>
+</html>

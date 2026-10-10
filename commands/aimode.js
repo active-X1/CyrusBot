@@ -29,10 +29,13 @@ function setEnabledForChat(chatId, enabled) {
   writeJson(STORE_NAME, state);
 }
 
+const ui = require('../lib/ui');
+
 module.exports = {
   name: 'aimode',
   aliases: [],
-  description: 'Toggle automatic AI replies for this chat: ".aimode on" / ".aimode off".',
+  description: 'Toggle AI replies on/off',
+  emoji: '🤖',
   category: 'ai',
   ownerOnly: false, // permission is checked manually below (owner OR group admin)
   isEnabledForChat, // exported for index.js to check on every incoming message
@@ -44,17 +47,17 @@ module.exports = {
       return ctx.safeSend(
         sock,
         ctx.chatId,
-        { text: `AI mode is currently *${status}* for this chat.\nUsage: ${ctx.config.prefix}aimode on|off` },
+        { text: ui.box('🧠 AI MODE', [`📡 Status : ${status === 'ON' ? '🟢 ON' : '🔴 OFF'}`, `⚙️ Use    : ${ctx.config.prefix}aimode on|off`]) },
         { quoted: msg }
       );
     }
 
-    const allowed = await ctx.canManageChat(sock, ctx.chatId, ctx.senderJid);
+    const allowed = await ctx.canManageChat(sock, ctx.chatId, ctx.senderJid, ctx.senderAltJid);
     if (!allowed) {
       return ctx.safeSend(
         sock,
         ctx.chatId,
-        { text: '🚫 Only the bot owner or a group admin can change AI mode.' },
+        { text: ui.denied('Only the bot owner or a group admin can change AI mode.') },
         { quoted: msg }
       );
     }
@@ -63,7 +66,7 @@ module.exports = {
     await ctx.safeSend(
       sock,
       ctx.chatId,
-      { text: sub === 'on' ? '✅ AI mode enabled for this chat.' : '🛑 AI mode disabled for this chat.' },
+      { text: sub === 'on' ? ui.box('🧠 AI MODE', ['🟢 Enabled for this chat']) : ui.box('🧠 AI MODE', ['🔴 Disabled for this chat']) },
       { quoted: msg }
     );
   },

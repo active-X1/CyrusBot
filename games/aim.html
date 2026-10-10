@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>CyrusBot Aim Challenge</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+        background: #080b12;
+        color: white;
+        font-family: Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: env(safe-area-inset-top, 12px) 12px env(safe-area-inset-bottom, 12px);
+    }
+
+    .game {
+        text-align: center;
+        width: 100%;
+        max-width: 420px;
+    }
+
+    h1 {
+        margin-bottom: 6px;
+        color: #ff9900;
+        font-size: 22px;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: center;
+        gap: 18px;
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+
+    .stats span { color: #ff9900; font-weight: bold; }
+
+    #arena {
+        position: relative;
+        width: 100%;
+        max-width: 360px;
+        aspect-ratio: 1 / 1;
+        margin: 0 auto;
+        background: #111827;
+        border: 3px solid #ff9900;
+        border-radius: 10px;
+        overflow: hidden;
+        touch-action: none;
+    }
+
+    .target {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #ffd27a, #ff3355 70%);
+        box-shadow: 0 0 10px rgba(255, 51, 85, 0.7);
+        transform: translate(-50%, -50%) scale(0);
+        transition: transform 80ms ease-out;
+    }
+
+    .target.show { transform: translate(-50%, -50%) scale(1); }
+
+    .overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(8, 11, 18, 0.9);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        text-align: center;
+        padding: 16px;
+    }
+
+    .overlay.hidden { display: none; }
+
+    .overlay h2 { color: #ff9900; }
+
+    button.primary {
+        margin-top: 8px;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 8px;
+        background: #ff9900;
+        color: #000;
+        font-weight: bold;
+        font-size: 15px;
+    }
+
+    .hint {
+        margin-top: 10px;
+        font-size: 12px;
+        color: #8899aa;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="game">
+    <h1>🎯 Aim Challenge</h1>
+    <div class="stats">
+        <div>Score: <span id="score">0</span></div>
+        <div>Time: <span id="time">15</span>s</div>
+    </div>
+
+    <div id="arena">
+        <div class="overlay" id="start-overlay">
+            <h2>🎯 Aim Challenge</h2>
+            <p>Tap the targets as fast as you can.<br>15 seconds on the clock.</p>
+            <button class="primary" id="start-btn">Start</button>
+        </div>
+        <div class="overlay hidden" id="end-overlay">
+            <h2>Time's up!</h2>
+            <p>Final score: <span id="final-score">0</span></p>
+            <button class="primary" id="restart-btn">Play Again</button>
+        </div>
+    </div>
+
+    <div class="hint">CyrusBot</div>
+</div>
+
+<script>
+const arena = document.getElementById("arena");
+const scoreEl = document.getElementById("score");
+const timeEl = document.getElementById("time");
+const startOverlay = document.getElementById("start-overlay");
+const endOverlay = document.getElementById("end-overlay");
+const finalScoreEl = document.getElementById("final-score");
+
+const ROUND_SECONDS = 15;
+const TARGET_SIZE = 44;
+
+let score = 0;
+let timeLeft = ROUND_SECONDS;
+let timerId = null;
+let currentTarget = null;
+let running = false;
+
+function arenaSize() {
+    return { w: arena.clientWidth, h: arena.clientHeight };
+}
+
+function spawnTarget() {
+    if (currentTarget) currentTarget.remove();
+
+    const { w, h } = arenaSize();
+    const margin = TARGET_SIZE / 2 + 4;
+    const x = margin + Math.random() * (w - margin * 2);
+    const y = margin + Math.random() * (h - margin * 2);
+
+    const target = document.createElement("div");
+    target.className = "target";
+    target.style.left = x + "px";
+    target.style.top = y + "px";
+
+    const hit = (e) => {
+        if (!running) return;
+        e.preventDefault();
+        score++;
+        scoreEl.textContent = score;
+        spawnTarget();
+    };
+    target.addEventListener("touchstart", hit, { passive: false });
+    target.addEventListener("click", hit);
+
+    arena.appendChild(target);
+    currentTarget = target;
+    requestAnimationFrame(() => target.classList.add("show"));
+}
+
+function tick() {
+    timeLeft--;
+    timeEl.textContent = timeLeft;
+    if (timeLeft <= 0) endRound();
+}
+
+function startRound() {
+    score = 0;
+    timeLeft = ROUND_SECONDS;
+    scoreEl.textContent = score;
+    timeEl.textContent = timeLeft;
+    running = true;
+
+    startOverlay.classList.add("hidden");
+    endOverlay.classList.add("hidden");
+
+    spawnTarget();
+    timerId = setInterval(tick, 1000);
+}
+
+function endRound() {
+    running = false;
+    clearInterval(timerId);
+    if (currentTarget) {
+        currentTarget.remove();
+        currentTarget = null;
+    }
+    finalScoreEl.textContent = score;
+    endOverlay.classList.remove("hidden");
+}
+
+document.getElementById("start-btn").addEventListener("click", startRound);
+document.getElementById("restart-btn").addEventListener("click", startRound);
+</script>
+
+</body>
+</html>
