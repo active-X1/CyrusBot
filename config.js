@@ -72,6 +72,11 @@ const config = {
   openrouterModel: process.env.OPENROUTER_MODEL || 'openrouter/free',
   aiDailyLimit: Number.parseInt(process.env.AI_DAILY_LIMIT, 10) || 10,
 
+  // .imagine: OpenRouter's "Nano Banana" (Gemini 2.5 Flash Image). It is a
+  // PAID model, so it has its own, smaller per-chat daily limit.
+  openrouterImageModel: process.env.OPENROUTER_IMAGE_MODEL || 'google/gemini-2.5-flash-image',
+  imagineDailyLimit: Number.parseInt(process.env.IMAGINE_DAILY_LIMIT, 10) || 5,
+
   // Optional: pin the .encrypt/.decrypt key (see lib/cipher.js). Empty = auto-generated.
   cipherKey: process.env.CIPHER_KEY || '',
 

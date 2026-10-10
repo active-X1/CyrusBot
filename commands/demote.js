@@ -7,6 +7,7 @@ module.exports = {
   name: 'demote',
   aliases: [],
   description: 'Remove admin',
+  usage: '@user',
   emoji: '⬇️',
   category: 'admin',
   ownerOnly: true,

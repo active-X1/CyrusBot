@@ -9,6 +9,7 @@ module.exports = {
   name: 'ai',
   aliases: [],
   description: 'Ask the AI a question',
+  usage: '<question>',
   emoji: '🧠',
   category: 'ai',
   ownerOnly: false,

@@ -1,86 +1,32 @@
-# 🤖 CyrusBot
+# CyrusBot
 
-> **A modular, powerful, and developer-friendly WhatsApp bot built with Node.js and Baileys.**
+A modular WhatsApp bot built on [Baileys](https://github.com/WhiskeySockets/Baileys), by **Active X** ([github.com/active-X1](https://github.com/active-X1)).
 
-![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?style=for-the-badge&logo=node.js&logoColor=white)
-![Baileys](https://img.shields.io/badge/Baileys-WhatsApp-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-ES2022-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
-![License](https://img.shields.io/github/license/active-X1/CyrusBot?style=for-the-badge)
+CyrusBot was rebuilt from the ground up using an existing bot template ("oxbot-md") only as a technical
+starting point. All commands, configuration, branding, and most of the internal architecture are new.
 
 ---
 
-## 📖 About
+## ⚠️ If you got this project from a ZIP that included session data — stop
 
-**CyrusBot** is a modular WhatsApp bot built with **Node.js** and **Baileys**.
-
-The project is designed with a clean and flexible architecture where every feature can live inside its own command module.
-
-Instead of putting everything into one large file, CyrusBot separates:
-
-- ⚙️ Connection handling
-- 🧩 Commands
-- 🤖 AI functionality
-- 🔐 Encryption
-- 🛡️ Permissions
-- 💾 Data storage
-- 📝 Logging
-- 🚦 Rate limiting
-
-This makes CyrusBot easier to **understand, maintain, debug, and extend**.
+This clean rebuild ships with **no session data at all**. If you are migrating from an older bot folder
+that has a `session/` directory full of `.json` files (`creds.json`, `app-state-sync-*.json`, etc.), those
+files are your **live WhatsApp login credentials**. Never upload, share, or commit that folder — anyone
+with those files can act as your WhatsApp account. If you're unsure whether an old copy leaked, open
+WhatsApp on your phone → **Settings → Linked Devices** and remove any device you don't recognize.
 
 ---
 
-## ✨ Features
+## 1. Architecture overview
 
-- 📱 **QR Code Authentication**
-- 🔢 **Pairing Code Authentication**
-- 🧩 **Modular Command System**
-- ⚡ **Dynamic Command Loading**
-- 🏓 **Ping Command**
-- 🤖 **AI Chat**
-- 🧠 **Automatic AI Mode**
-- 🔐 **AES-256-GCM Encryption**
-- 🔓 **Secure Decryption**
-- 📨 **Custom Auto-Reply**
-- 👑 **Owner Permissions**
-- 🛡️ **Group Admin Permissions**
-- 🚦 **AI Rate Limiting**
-- 💾 **Lightweight JSON Database**
-- 📝 **Centralized Logging**
-- 🔄 **Automatic Reconnection**
-- ⚙️ **Environment-Based Configuration**
-- 🔒 **Protected Session Storage**
-
----
-
-## 🧰 Built With
-
-CyrusBot is built using:
-
-| Technology | Purpose |
-|---|---|
-| **Node.js** | JavaScript runtime |
-| **Baileys** | WhatsApp Web API library |
-| **JavaScript** | Main programming language |
-| **Groq** | AI provider |
-| **Pino** | Application logging |
-| **dotenv** | Environment configuration |
-| **Node.js Crypto** | Encryption and decryption |
-
----
-
-# 📁 Project Structure
-
-```text
+```
 CyrusBot/
-│
-├── index.js
-├── config.js
+├── index.js              # Connection lifecycle + message dispatch (the "glue")
+├── config.js              # Reads .env, exposes one config object
 ├── package.json
-├── .env.example
+├── .env.example            # Copy to .env and fill in
 ├── .gitignore
-│
-├── commands/
+├── commands/               # One file per command (see "Command structure" below)
 │   ├── ping.js
 │   ├── help.js
 │   ├── ai.js
@@ -88,21 +34,7 @@ CyrusBot/
 │   ├── encrypt.js
 │   ├── decrypt.js
 │   └── setmessage.js
-│
 ├── lib/
-│   ├── commandLoader.js
-│   ├── logger.js
-│   ├── helpers.js
-│   ├── aiProvider.js
-│   ├── rateLimiter.js
-│   └── db.js
-│
-├── database/
-├── sessions/
-├── downloads/
-├── media/
-├── temp/
-└── logs/
 │   ├── commandLoader.js    # Scans commands/ and builds the trigger → command map
 │   ├── logger.js           # Shared pino logger (console + logs/bot.log)
 │   ├── helpers.js          # JID/permission helpers, safeSend, extractText
@@ -263,6 +195,7 @@ Everything is controlled by `.env` (copy `.env.example` to `.env` and fill it in
 | `AUTH_METHOD` | `qr` or `pairing-code` |
 | `PAIRING_NUMBER` | Number to request a pairing code for (if using pairing-code) |
 | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` | AI provider key / model (default `openrouter/free`) |
+| `OPENROUTER_IMAGE_MODEL`, `IMAGINE_DAILY_LIMIT` | `.imagine` model (default `google/gemini-2.5-flash-image`, Nano Banana, paid) / images per chat per day (default 5) |
 | `AI_DAILY_LIMIT` | Replies per chat per day (default 10) |
 | `CIPHER_KEY` | Optional: pin the `.encrypt`/`.decrypt` key (otherwise auto-generated) |
 | `LOG_LEVEL` | `fatal`\|`error`\|`warn`\|`info`\|`debug`\|`trace` |

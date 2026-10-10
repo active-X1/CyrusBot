@@ -45,7 +45,7 @@ module.exports = {
   aliases: [],
   description: 'Set DM auto-reply (on/off)',
   emoji: '💬',
-  category: 'admin',
+  category: 'utility',
   ownerOnly: true,
   getAutoReply, // used by index.js
   async execute(sock, msg, args, ctx) {

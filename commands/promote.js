@@ -7,6 +7,7 @@ module.exports = {
   name: 'promote',
   aliases: [],
   description: 'Make someone admin',
+  usage: '@user',
   emoji: '⬆️',
   category: 'admin',
   ownerOnly: true,
