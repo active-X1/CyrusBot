@@ -3,6 +3,7 @@
 const ui = require('../lib/ui');
 const { pickTarget, guardAdmin } = require('../lib/groupAdmin');
 const { digitsFromJid, findParticipant, isAdminRole, isOwner } = require('../lib/helpers');
+const { invalidate } = require('../lib/groupCache');
 
 const TITLE = '🦵 KICK';
 
@@ -37,6 +38,7 @@ module.exports = {
 
     try {
       const result = await sock.groupParticipantsUpdate(ctx.chatId, [target.id], 'remove');
+      invalidate(ctx.chatId);
       const status = String(result?.[0]?.status ?? '');
       if (status === '200') return reply(ui.box(TITLE, [`✅ ${tag} was removed.`]), { mentions });
       ctx.logger.warn({ status }, 'Kick was refused');

@@ -16,6 +16,7 @@
 const config = require('../config');
 const ui = require('../lib/ui');
 const { digitsFromJid } = require('../lib/helpers');
+const { getGroupMetadata } = require('../lib/groupCache');
 
 const INVITE_RE = /chat\.whatsapp\.com\/([A-Za-z0-9]{10,32})/i;
 
@@ -65,7 +66,7 @@ module.exports = {
         fromLink = true;
         meta = await sock.groupGetInviteInfo(linkMatch[1]);
       } else {
-        meta = await sock.groupMetadata(ctx.chatId);
+        meta = await getGroupMetadata(sock, ctx.chatId);
       }
     } catch (err) {
       ctx.logger.warn({ err: err.message, fromLink }, 'groupinfo lookup failed');

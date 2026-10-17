@@ -37,6 +37,7 @@ const { askAI, AIProviderError } = require('./lib/aiProvider');
 const ui = require('./lib/ui');
 const { resolveAuthMethod, resetSession } = require('./lib/authSetup');
 const { startGameServer } = require('./lib/gameServer');
+const groupCache = require('./lib/groupCache');
 
 const SESSIONS_PATH = path.resolve(config.paths.sessions);
 
@@ -172,9 +173,16 @@ async function connectOnce(authChoice) {
     defaultQueryTimeoutMs: 60_000,
     connectTimeoutMs: 60_000,
     keepAliveIntervalMs: 10_000,
+    // Lets Baileys reuse our cached group info when sending to groups instead of
+    // fetching it from WhatsApp on every send.
+    cachedGroupMetadata: async (jid) => groupCache.peek(jid),
   });
 
   sock.ev.on('creds.update', saveCreds);
+
+  // Group info changed (members, admins, name, settings): drop the cached copy.
+  sock.ev.on('group-participants.update', (u) => groupCache.invalidate(u.id));
+  sock.ev.on('groups.update', (list) => (list || []).forEach((g) => g.id && groupCache.invalidate(g.id)));
 
   sock.ev.on('messages.upsert', async (update) => {
     // Only live messages ('notify'). Baileys also emits 'append' events for
@@ -185,7 +193,12 @@ async function connectOnce(authChoice) {
       if (msg.message?.ephemeralMessage) {
         msg.message = msg.message.ephemeralMessage.message;
       }
-      await handleIncomingMessage(sock, msg);
+      // NOT awaited on purpose: one slow command (.ai up to 30s, .imagine up to
+      // 90s) used to freeze every other message in every chat. Each message now
+      // runs on its own; handleIncomingMessage catches its own errors.
+      handleIncomingMessage(sock, msg).catch((err) =>
+        logger.error({ err: err?.message }, 'Message handler crashed')
+      );
     }
   });
 
