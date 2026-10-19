@@ -114,7 +114,9 @@ module.exports = {
     if (meta.isCommunity) flags.push('🏘️ Community');
     if (flags.length) lines.push('', ...flags);
 
-    if (meta.desc) lines.push('', '📝 Description:', truncate(meta.desc.trim(), 600));
+    // The description goes in its own plain message (below), NOT inside the box:
+    // long or multi-line text looks broken when every line gets the box prefix.
+    const description = meta.desc ? truncate(meta.desc.trim(), 1500) : '';
 
     const text = ui.box('👥 GROUP INFO', lines);
 
@@ -126,11 +128,13 @@ module.exports = {
       pictureUrl = null; // no picture / hidden - just skip it
     }
 
+    let sent = null;
     if (pictureUrl) {
-      const sent = await reply({ image: { url: pictureUrl }, caption: text, mentions });
-      if (sent) return;
-      ctx.logger.warn('groupinfo image send failed, falling back to text');
+      sent = await reply({ image: { url: pictureUrl }, caption: text, mentions });
+      if (!sent) ctx.logger.warn('groupinfo image send failed, falling back to text');
     }
-    await reply({ text, mentions });
+    if (!sent) await reply({ text, mentions });
+
+    if (description) await reply({ text: `📝 *Description*\n\n${description}` });
   },
 };

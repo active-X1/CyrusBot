@@ -36,7 +36,7 @@ module.exports = {
 
     try {
       await reply({ text: '🎨 Creating your image...' });
-      await sock.sendPresenceUpdate('composing', ctx.chatId).catch(() => {});
+      sock.sendPresenceUpdate('composing', ctx.chatId).catch(() => {}); // not awaited: don't delay the AI call
 
       const image = await generateImage(prompt);
       rateLimiter.recordUsage(ctx.chatId, opts);

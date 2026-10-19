@@ -57,6 +57,7 @@ const config = {
   prefixes: [...new Set([primaryPrefix, ...extraPrefixes])], // what message parsing actually uses
 
   ownerNumber: digitsOnly(process.env.OWNER_NUMBER),
+  ownerName: (process.env.OWNER_NAME || '').trim(), // shown by .owner (falls back to the WhatsApp name)
   sudoNumbers: parseNumberList(process.env.SUDO_NUMBERS),
 
   // 'qr' | 'pairing-code'. If AUTH_METHOD wasn't set (or wasn't
@@ -71,6 +72,9 @@ const config = {
   // "openrouter/free" = OpenRouter's router that picks an available free model.
   openrouterModel: process.env.OPENROUTER_MODEL || 'openrouter/free',
   aiDailyLimit: Number.parseInt(process.env.AI_DAILY_LIMIT, 10) || 10,
+
+  // .warn: how many warnings before a member is removed from the group.
+  warnLimit: Number.parseInt(process.env.WARN_LIMIT, 10) || 3,
 
   // .imagine: OpenRouter's "Nano Banana" (Gemini 2.5 Flash Image). It is a
   // PAID model, so it has its own, smaller per-chat daily limit.

@@ -26,12 +26,12 @@ const OWNER_TITLE = '👑 OWNER ONLY';
 const BULLET = '│ ➜ ';
 
 const ORDER = [
-  'menu', 'ping', 'help',
-  'ai', 'imagine', 'aimode',
-  'profile', 'groupinfo', 'encrypt', 'decrypt',
+  'menu', 'ping', 'help', 'owner', 'weather', 'mode',
+  'ai', 'imagine', 'aimode', 'translate', 'summarize',
+  'profile', 'groupinfo', 'warns', 'encrypt', 'decrypt',
   'snakegame', 'aimgame',
-  'groupimg', 'tagall', 'kick', 'promote', 'demote',
-  'view', 'setmessage',
+  'groupimg', 'tagall', 'hidetag', 'kick', 'warn', 'resetwarn', 'mute', 'unmute', 'antilink', 'antibot', 'welcome', 'goodbye', 'link', 'revoke', 'promote', 'demote',
+  'view', 'setmessage', 'broadcast', 'stats', 'block', 'unblock',
 ];
 
 function byOrder(a, b) {
@@ -46,11 +46,25 @@ function entry(cmd, prefix) {
   return `${prefix}${cmd.name}${usage}${aliases}`;
 }
 
-async function getProfilePictureUrl(sock) {
+// The bot's own picture rarely changes, so remember it for 15 minutes instead of
+// asking WhatsApp and re-downloading it on every .menu.
+const PIC_TTL_MS = 15 * 60_000;
+let picCache = null; // { url, buffer, ts }
+
+async function getProfilePicture(sock) {
+  if (picCache && Date.now() - picCache.ts < PIC_TTL_MS) return picCache;
   try {
     const digits = digitsFromJid(sock.user?.id);
     if (!digits) return null;
-    return (await sock.profilePictureUrl(`${digits}@s.whatsapp.net`, 'image')) || null;
+    const url = await sock.profilePictureUrl(`${digits}@s.whatsapp.net`, 'image');
+    if (!url) return null;
+    let buffer = null;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+      if (res.ok) buffer = Buffer.from(await res.arrayBuffer());
+    } catch {}
+    picCache = { url, buffer, ts: Date.now() };
+    return picCache;
   } catch {
     return null; // no photo / hidden by privacy / network - caller falls back to text
   }
@@ -109,9 +123,10 @@ module.exports = {
   async execute(sock, msg, args, ctx) {
     const { text, mentions } = buildMenu(sock, ctx);
 
-    const pictureUrl = await getProfilePictureUrl(sock);
-    if (pictureUrl) {
-      const sent = await ctx.safeSend(sock, ctx.chatId, { image: { url: pictureUrl }, caption: text, mentions }, { quoted: msg });
+    const picture = await getProfilePicture(sock);
+    if (picture) {
+      const image = picture.buffer || { url: picture.url };
+      const sent = await ctx.safeSend(sock, ctx.chatId, { image, caption: text, mentions }, { quoted: msg });
       if (sent) return;
       ctx.logger.warn('Menu image send failed, falling back to text');
     }

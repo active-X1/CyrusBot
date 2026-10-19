@@ -35,14 +35,14 @@ module.exports = {
     }
 
     try {
-      await sock.sendPresenceUpdate('composing', ctx.chatId).catch(() => {});
+      sock.sendPresenceUpdate('composing', ctx.chatId).catch(() => {}); // not awaited: don't delay the AI call
       const answer = await askAI(question);
       rateLimiter.recordUsage(ctx.chatId);
       const remaining = limit.remaining - 1;
       await ctx.safeSend(
         sock,
         ctx.chatId,
-        { text: ui.box('🧠 AI', [answer, '', `📊 ${remaining} ${remaining === 1 ? 'reply' : 'replies'} left today`]) },
+        { text: `${answer}\n\n📊 ${remaining} ${remaining === 1 ? 'reply' : 'replies'} left today` },
         { quoted: msg }
       );
     } catch (err) {

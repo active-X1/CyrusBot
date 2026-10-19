@@ -38,6 +38,11 @@ const ui = require('./lib/ui');
 const { resolveAuthMethod, resetSession } = require('./lib/authSetup');
 const { startGameServer } = require('./lib/gameServer');
 const groupCache = require('./lib/groupCache');
+const { handleAntilink } = require('./lib/antilink');
+const { getMode } = require('./lib/mode');
+const { handleAntibot } = require('./lib/antibot');
+const { handleParticipantsUpdate } = require('./lib/greetings');
+const chatLog = require('./lib/chatLog');
 
 const SESSIONS_PATH = path.resolve(config.paths.sessions);
 
@@ -45,6 +50,7 @@ const SESSIONS_PATH = path.resolve(config.paths.sessions);
 // ours, which is much noisier) to avoid flooding stdout with internal
 // protocol chatter.
 const baileysLogger = pino({ level: 'silent' });
+const MAX_MESSAGE_AGE_SECONDS = 120; // ignore messages older than this (offline backlog)
 
 let commandRegistry = null;
 let commandList = [];
@@ -92,6 +98,9 @@ async function handleIncomingMessage(sock, msg) {
       canManageChat,
     };
 
+    // Private mode: only the owner gets any reply (commands, AI mode, auto-replies).
+    if (!ctx.isOwner && getMode() === 'private') return;
+
     const prefixMatch = matchPrefix(text, config.prefixes);
     if (prefixMatch) {
       const [rawCommand, ...args] = prefixMatch.rest.trim().split(/\s+/);
@@ -127,7 +136,7 @@ The error has been logged.`) },
       if (!limit.allowed) return; // stay silent once the daily limit is hit, to avoid spamming the chat
 
       try {
-        await sock.sendPresenceUpdate('composing', chatId).catch(() => {});
+        sock.sendPresenceUpdate('composing', chatId).catch(() => {}); // not awaited: don't delay the AI call
         const answer = await askAI(text);
         rateLimiter.recordUsage(chatId);
         await safeSend(sock, chatId, { text: answer }, { quoted: msg });
@@ -176,12 +185,21 @@ async function connectOnce(authChoice) {
     // Lets Baileys reuse our cached group info when sending to groups instead of
     // fetching it from WhatsApp on every send.
     cachedGroupMetadata: async (jid) => groupCache.peek(jid),
+    // Less work per event: don't process status updates or channels (nothing here uses them),
+    // and don't download chat history.
+    shouldIgnoreJid: (jid) => jid === 'status@broadcast' || String(jid).endsWith('@newsletter'),
+    shouldSyncHistoryMessage: () => false,
+    downloadHistory: false,
   });
 
   sock.ev.on('creds.update', saveCreds);
 
   // Group info changed (members, admins, name, settings): drop the cached copy.
-  sock.ev.on('group-participants.update', (u) => groupCache.invalidate(u.id));
+  sock.ev.on('group-participants.update', (u) => {
+    groupCache.invalidate(u.id);
+    // Welcome / goodbye messages (only if switched on for that group).
+    handleParticipantsUpdate(sock, u).catch((err) => logger.error({ err: err?.message }, 'Greeting failed'));
+  });
   sock.ev.on('groups.update', (list) => (list || []).forEach((g) => g.id && groupCache.invalidate(g.id)));
 
   sock.ev.on('messages.upsert', async (update) => {
@@ -190,9 +208,23 @@ async function connectOnce(authChoice) {
     // could make the bot answer itself or reply to old messages.
     if (update.type !== 'notify') return;
     for (const msg of update.messages || []) {
+      // Messages that queued up while the bot was offline arrive all at once after a
+      // reconnect. Skip the stale ones so they can't flood the bot or trigger old replies.
+      const sentAt = Number(msg.messageTimestamp?.low ?? msg.messageTimestamp) || 0;
+      if (sentAt && Date.now() / 1000 - sentAt > MAX_MESSAGE_AGE_SECONDS) continue;
+
       if (msg.message?.ephemeralMessage) {
         msg.message = msg.message.ephemeralMessage.message;
       }
+      // Remember recent text in memory (for .summarize).
+      try { chatLog.record(msg); } catch {}
+
+      // Antilink and antibot look at every group message (before and independent of commands).
+      if (msg.key?.remoteJid?.endsWith('@g.us') && !msg.key.fromMe) {
+        handleAntilink(sock, msg).catch((err) => logger.error({ err: err?.message }, 'Antilink crashed'));
+        handleAntibot(sock, msg).catch((err) => logger.error({ err: err?.message }, 'Antibot crashed'));
+      }
+
       // NOT awaited on purpose: one slow command (.ai up to 30s, .imagine up to
       // 90s) used to freeze every other message in every chat. Each message now
       // runs on its own; handleIncomingMessage catches its own errors.
@@ -231,6 +263,13 @@ async function connectOnce(authChoice) {
       if (connection === 'open') {
         logger.info({ user: sock.user?.id }, `${config.botName} connected`);
         console.log(`\n✅ ${config.botName} is connected and ready.\n`);
+        // Warm the group cache once, a few seconds after connecting, so the first
+        // command or send in each group doesn't have to wait for WhatsApp.
+        setTimeout(() => {
+          sock.groupFetchAllParticipating()
+            .then((groups) => groupCache.prime(Object.values(groups || {})))
+            .catch(() => {});
+        }, 5000);
       }
 
       if (connection === 'close') {

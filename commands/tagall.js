@@ -20,7 +20,9 @@ module.exports = {
 
     const members = meta.participants || [];
     const note = args.join(' ').trim();
-    const lines = members.map((p) => `@${digitsFromJid(p.phoneNumber || p.id)}`);
+    // The "@..." text must use the SAME id that goes in `mentions` (the id the group
+    // lists, phone or @lid). Then WhatsApp swaps it for the person's saved/profile name.
+    const lines = members.map((p) => `@${digitsFromJid(p.id)}`);
     const title = `📢 TAG ALL${note ? ` - ${note}` : ''}`;
     const text = ui.box(title, [`👥 ${members.length} members`, ...lines], { bullet: '│ ➜ ' });
 
