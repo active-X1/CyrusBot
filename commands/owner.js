@@ -44,7 +44,7 @@ module.exports = {
       `✨ ${name} built and runs *${config.botName}*.`,
       '',
       '📲 Tap the card above to message or call.',
-      '💬 Questions, ideas or want your own bot? Say hi!',
+      '💬 Questions, ideas or want your own bot, website, software, etc.. Say hi!',
       '',
       '🚀 Powered by passion and good code.',
     ]);
