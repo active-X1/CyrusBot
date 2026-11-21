@@ -36,7 +36,7 @@ module.exports = {
         `📊 ${commands.length} commands available`,
         `⚡ Prefix : ${config.prefixes.join(' ')}`,
         '',
-        names.join('  '),
+        ...names,
         '',
         `📖 ${prefix}help <command> for details`,
         `📋 ${prefix}menu for the full menu`,

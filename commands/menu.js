@@ -23,7 +23,7 @@ const SECTIONS = [
 ];
 const ADMIN_TITLE = '👮 ADMIN COMMANDS';
 const OWNER_TITLE = '👑 OWNER ONLY';
-const BULLET = '│ ➜ ';
+const BULLET = '│  › ';
 
 const ORDER = [
   'menu', 'ping', 'help', 'owner', 'weather', 'mode',
@@ -84,31 +84,27 @@ function buildMenu(sock, ctx) {
   const isAdminCmd = (c) => c.category === 'admin';
   const adminCmds = ctx.commands.filter(isAdminCmd).sort(byOrder);
   const ownerCmds = ctx.commands.filter((c) => c.ownerOnly && !isAdminCmd(c)).sort(byOrder);
-
   const sender = senderMention(ctx);
-  const header = ui.card(`🤖 ${config.botName.toUpperCase()}`, [
-    `👋🏽 Hi @${sender.digits}`,
-    '',
-    `👤 Owner: ${ownerName}`,
-    `💻 Developer: ${config.botAuthor}`,
-    `⚡ Prefix: ${config.prefixes.join(' ')}`,
-    `🤖 Bot: ${config.botName}`,
-    `📊 Commands: ${ctx.commands.length} (${ctx.commands.filter((c) => c.ownerOnly).length} owner-only)`,
-    `⏱️ Uptime: ${formatUptime(process.uptime())}`,
-    '',
+  const header = ui.card(`🤖 ${config.botName}`, [
+    `Hey @${sender.digits} 👋`,
+    `Developer: ${config.botAuthor}`,
+    `Owner: ${ownerName}`,
+    `Prefix: ${config.prefixes.join('  ')}`,
+    `Commands: ${ctx.commands.length}`,
+    `Uptime: ${formatUptime(process.uptime())}`,
   ]);
-
   const sections = [];
-  for (const section of SECTIONS) {
-    const cmds = ctx.commands
-      .filter((c) => !c.ownerOnly && !isAdminCmd(c) && (c.category || 'general') === section.key)
-      .sort(byOrder);
-    if (cmds.length) sections.push(ui.section(section.title, cmds.map((c) => entry(c, prefix)), { bullet: BULLET }));
+  for (const group of SECTIONS) {
+    const cmds = ctx.commands.filter((c) => !c.ownerOnly && !isAdminCmd(c) && (c.category || 'general') === group.key).sort(byOrder);
+    if (cmds.length) sections.push(ui.section(group.title, cmds.map((c) => entry(c, prefix)), { bullet: BULLET, width: 34 }));
   }
   if (adminCmds.length) sections.push(ui.section(ADMIN_TITLE, adminCmds.map((c) => entry(c, prefix)), { bullet: BULLET }));
   if (ownerCmds.length) sections.push(ui.section(OWNER_TITLE, ownerCmds.map((c) => entry(c, prefix)), { bullet: BULLET }));
-
-  const text = [header, ...sections, `> ${config.botName} • ${config.botAuthor}`].join('\n\n');
+  sections.push(ui.section('🌐 DEVELOPER LINKS', [
+    'Portfolio: https://activex-portfolio.vercel.app',
+    'GitHub: https://github.com/active-X1',
+  ], { bullet: '│  ↗ ' }));
+  const text = [header, ...sections, `Built with care by ${config.botAuthor} • activeX`].join('\n\n');
   return { text, mentions: [sender.jid] };
 }
 
