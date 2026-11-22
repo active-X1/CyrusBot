@@ -104,7 +104,7 @@ function buildMenu(sock, ctx) {
     'Portfolio: https://activex-portfolio.vercel.app',
     'GitHub: https://github.com/active-X1',
   ], { bullet: '│  ↗ ' }));
-  const text = [header, ...sections, `Built with care by ${config.botAuthor} • activeX`].join('\n\n');
+  const text = [header, ...sections, `> Built with care by ${config.botAuthor} • activeX`].join('\n\n');
   return { text, mentions: [sender.jid] };
 }
 
