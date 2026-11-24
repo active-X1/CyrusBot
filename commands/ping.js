@@ -27,16 +27,18 @@ module.exports = {
     const sent = await ctx.safeSend(sock, ctx.chatId, { text: '🏓 Pinging...' }, { quoted: msg });
     const latency = Date.now() - start;
 
-    const text = ui.box('🏓 PONG!', [
-      `⚡ Speed  : ${latency}ms ${speedIcon(latency)}`,
+    const mem = Math.round(process.memoryUsage().rss / 1048576);
+    const final = ui.box('🏓 PONG!', [
+      `⚡ Speed : ${latency}ms ${speedIcon(latency)}`,
       `⏱️ Uptime : ${formatUptime(process.uptime())}`,
-      `🤖 Bot    : ${config.botName}`,
+      `💾 Memory : ${mem} MB`,
+      `🤖 Bot : ${config.botName}`,
     ]);
 
     if (sent?.key) {
-      const edited = await ctx.safeSend(sock, ctx.chatId, { text, edit: sent.key });
+      const edited = await ctx.safeSend(sock, ctx.chatId, { text: final, edit: sent.key });
       if (edited) return;
     }
-    await ctx.safeSend(sock, ctx.chatId, { text }, { quoted: msg });
+    await ctx.safeSend(sock, ctx.chatId, { text: final }, { quoted: msg });
   },
 };

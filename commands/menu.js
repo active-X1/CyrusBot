@@ -10,20 +10,21 @@
 // otherwise the same menu is sent as plain text.
 
 const config = require('../config');
-const ui = require('../lib/ui');
+const os = require('os');
+const { getMode } = require('../lib/mode');
+const pkg = require('../package.json');
 const { formatUptime, digitsFromJid } = require('../lib/helpers');
 
 // General commands first (each in its own block), then ADMIN COMMANDS as a
 // separate block, then OWNER ONLY.
 const SECTIONS = [
-  { key: 'general', title: '📌 GENERAL COMMANDS' },
-  { key: 'ai', title: '🧠 AI' },
-  { key: 'utility', title: '🛠️ TOOLS' },
-  { key: 'games', title: '🎮 GAMES' },
+  { key: 'general', title: 'GENERAL' },
+  { key: 'ai', title: 'AI' },
+  { key: 'utility', title: 'TOOLS' },
+  { key: 'games', title: 'GAMES' },
 ];
-const ADMIN_TITLE = '👮 ADMIN COMMANDS';
-const OWNER_TITLE = '👑 OWNER ONLY';
-const BULLET = '│  › ';
+const ADMIN_TITLE = 'ADMIN';
+const OWNER_TITLE = 'OWNER';
 
 const ORDER = [
   'menu', 'ping', 'help', 'owner', 'weather', 'mode',
@@ -40,11 +41,28 @@ function byOrder(a, b) {
   return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib) || a.name.localeCompare(b.name);
 }
 
-function entry(cmd, prefix) {
-  const usage = cmd.usage ? ` ${cmd.usage}` : '';
-  const aliases = cmd.aliases?.length ? ` (${cmd.aliases.map((a) => prefix + a).join(' ')})` : '';
-  return `${prefix}${cmd.name}${usage}${aliases}`;
+// ---- Cypher-style blocks ---------------------------------------------------
+//   ┏▣ ◈ *TITLE* ◈        header block uses ┃ rows
+//   │➽ command              command blocks use │➽ rows
+//   ┗▣
+// Every line is short and there are no long rules, so nothing wraps on a phone.
+const SMALL = { a: 'ᴀ', b: 'ʙ', c: 'ᴄ', d: 'ᴅ', e: 'ᴇ', f: 'ғ', g: 'ɢ', h: 'ʜ', i: 'ɪ', j: 'ᴊ', k: 'ᴋ', l: 'ʟ', m: 'ᴍ', n: 'ɴ', o: 'ᴏ', p: 'ᴘ', q: 'ǫ', r: 'ʀ', s: 's', t: 'ᴛ', u: 'ᴜ', v: 'ᴠ', w: 'ᴡ', x: 'x', y: 'ʏ', z: 'ᴢ' };
+const small = (t) => String(t).toLowerCase().replace(/[a-z]/g, (c) => SMALL[c]);
+
+// WhatsApp shows "Read more" after this many invisible characters, so only the
+// header is visible until the person taps it. Used for the plain-text menu.
+const READ_MORE = '\u200E'.repeat(4000);
+
+function infoBlock(title, rows) {
+  return [`┏▣ ◈ *${title}* ◈`, ...rows.map(([k, v]) => `┃ *${small(k)}* : ${v}`), '┗▣'].join('\n');
 }
+
+function listBlock(title, names) {
+  return [`┏▣ ◈ *${title} MENU* ◈`, ...names.map((n) => `│➽ ${n}`), '┗▣'].join('\n');
+}
+
+const bar = (pct) => `[${'█'.repeat(Math.round(pct / 10))}${'░'.repeat(10 - Math.round(pct / 10))}] ${pct}%`;
+const sizeOf = (bytes) => (bytes >= 1024 ** 3 ? `${Math.round(bytes / 1024 ** 3)} GB` : `${Math.round(bytes / 1024 ** 2)} MB`);
 
 // The bot's own picture rarely changes, so remember it for 15 minutes instead of
 // asking WhatsApp and re-downloading it on every .menu.
@@ -70,42 +88,46 @@ async function getProfilePicture(sock) {
   }
 }
 
-// Who to greet: the sender's digits, and a clean JID (no ":device" part)
-// so WhatsApp turns "@digits" into a real mention.
-function senderMention(ctx) {
-  const jid = ctx.senderJid || '';
-  const digits = digitsFromJid(jid);
-  return { digits, jid: `${digits}@${jid.endsWith('@lid') ? 'lid' : 's.whatsapp.net'}` };
-}
-
-function buildMenu(sock, ctx) {
+function buildMenu(sock, ctx, { fold = false } = {}) {
   const prefix = config.prefix;
-  const ownerName = sock.user?.name || sock.user?.verifiedName || 'Owner';
+  const ownerName = config.ownerName || sock.user?.name || sock.user?.verifiedName || 'Owner';
   const isAdminCmd = (c) => c.category === 'admin';
   const adminCmds = ctx.commands.filter(isAdminCmd).sort(byOrder);
   const ownerCmds = ctx.commands.filter((c) => c.ownerOnly && !isAdminCmd(c)).sort(byOrder);
-  const sender = senderMention(ctx);
-  const header = ui.card(`🤖 ${config.botName}`, [
-    `Hey @${sender.digits} 👋`,
-    `Developer: ${config.botAuthor}`,
-    `Owner: ${ownerName}`,
-    `Prefix: ${config.prefixes.join('  ')}`,
-    `Commands: ${ctx.commands.length}`,
-    `Uptime: ${formatUptime(process.uptime())}`,
+  const names = (list) => list.map((c) => c.name);
+
+  const used = process.memoryUsage().rss;
+  const total = os.totalmem();
+  const header = infoBlock(config.botName.toUpperCase(), [
+    ['owner', ownerName],
+    ['prefix', `[ ${config.prefixes.join(' ')} ]`],
+    ['mode', getMode() === 'private' ? 'Private' : 'Public'],
+    ['commands', ctx.commands.length],
+    ['version', pkg.version],
+    ['uptime', formatUptime(process.uptime())],
+    ['usage', `${sizeOf(used)} of ${sizeOf(total)}`],
+    ['ram', bar(Math.min(100, Math.round((used / total) * 100)))],
   ]);
+
   const sections = [];
   for (const group of SECTIONS) {
     const cmds = ctx.commands.filter((c) => !c.ownerOnly && !isAdminCmd(c) && (c.category || 'general') === group.key).sort(byOrder);
-    if (cmds.length) sections.push(ui.section(group.title, cmds.map((c) => entry(c, prefix)), { bullet: BULLET, width: 34 }));
+    if (cmds.length) sections.push(listBlock(group.title, names(cmds)));
   }
-  if (adminCmds.length) sections.push(ui.section(ADMIN_TITLE, adminCmds.map((c) => entry(c, prefix)), { bullet: BULLET }));
-  if (ownerCmds.length) sections.push(ui.section(OWNER_TITLE, ownerCmds.map((c) => entry(c, prefix)), { bullet: BULLET }));
-  sections.push(ui.section('🌐 DEVELOPER LINKS', [
-    'Portfolio: https://activex-portfolio.vercel.app',
-    'GitHub: https://github.com/active-X1',
-  ], { bullet: '│  ↗ ' }));
-  const text = [header, ...sections, `> Built with care by ${config.botAuthor} • activeX`].join('\n\n');
-  return { text, mentions: [sender.jid] };
+  if (adminCmds.length) sections.push(listBlock(ADMIN_TITLE, names(adminCmds)));
+  if (ownerCmds.length) sections.push(listBlock(OWNER_TITLE, names(ownerCmds)));
+  sections.push([
+    '┏▣ ◈ *LINKS* ◈',
+    '│➽ portfolio',
+    '│ https://activex-portfolio.vercel.app',
+    '│➽ github',
+    '│ https://github.com/active-X1',
+    '┗▣',
+  ].join('\n'));
+
+  const footer = `_${prefix}help <command> for details • built by ${config.botAuthor}_`;
+  const text = [header + (fold ? `\n${READ_MORE}` : ''), ...sections, footer].join('\n\n');
+  return { text, mentions: [] };
 }
 
 module.exports = {
@@ -117,15 +139,15 @@ module.exports = {
   ownerOnly: false,
   buildMenu, // exported so it can be tested
   async execute(sock, msg, args, ctx) {
-    const { text, mentions } = buildMenu(sock, ctx);
-
     const picture = await getProfilePicture(sock);
     if (picture) {
+      const { text, mentions } = buildMenu(sock, ctx); // caption: WhatsApp adds its own "Read more"
       const image = picture.buffer || { url: picture.url };
       const sent = await ctx.safeSend(sock, ctx.chatId, { image, caption: text, mentions }, { quoted: msg });
       if (sent) return;
       ctx.logger.warn('Menu image send failed, falling back to text');
     }
+    const { text, mentions } = buildMenu(sock, ctx, { fold: true });
     await ctx.safeSend(sock, ctx.chatId, { text, mentions }, { quoted: msg });
   },
 };
